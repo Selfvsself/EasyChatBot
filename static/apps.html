@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="sl-theme-dark">
 <head>
     <meta charset="UTF-8">
@@ -11,6 +11,10 @@
             src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
 
     <style>
+        html {
+      font-size: 14px;
+    }
+
         body {
             margin: 0;
             font-family: var(--sl-font-sans);
@@ -86,6 +90,25 @@
             opacity: 0.5;
             margin-top: 20px;
         }
+
+        @media (max-width: 768px) {
+          html {
+            font-size: 18px;
+          }
+          .app-title {
+              font-size: 16px;
+          }
+
+          .app-description {
+              font-size: 14px;
+          }
+        }
+
+        sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+
     </style>
 </head>
 
@@ -246,3 +269,4 @@
 </script>
 </body>
 </html>
+

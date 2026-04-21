@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="sl-theme-dark">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +8,10 @@
     <script type="module"
             src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
     <style>
+        html {
+      font-size: 14px;
+    }
+
         body {
             margin: 0;
             font-family: var(--sl-font-sans);
@@ -47,20 +51,7 @@
             gap: var(--sl-spacing-small);
             margin: var(--sl-spacing-small);
         }
-        @media (max-width: 480px) {
-            body {
 
-            }
-
-            .header-section {
-                flex-direction: column;
-                gap: var(--sl-spacing-medium);
-            }
-
-            sl-input, sl-button {
-                width: 100%;
-            }
-        }
         #profile-btn {
             max-width: 160px; /* можно 120–180 подобрать */
             white-space: nowrap;
@@ -106,10 +97,6 @@
             gap: 10px;
             overflow: hidden;
         }
-        .chat-left sl-icon {
-            flex-shrink: 0;
-            font-size: 18px; /* фиксируем нормальный размер */
-        }
         .chat-title {
             font-size: 14px;
             font-weight: 500;
@@ -131,6 +118,21 @@
             text-align: center;
             opacity: 0.5;
             margin-top: 20px;
+        }
+
+
+        sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+
+        @media (max-width: 768px) {
+          html {
+            font-size: 18px;
+          }
+            .chat-title {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -342,3 +344,4 @@
 </script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="sl-theme-dark">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +10,10 @@
             src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
 
     <style>
+        html {
+            font-size: 14px;
+        }
+
         body {
             margin: 0;
             font-family: var(--sl-font-sans);
@@ -21,10 +25,11 @@
 
         .container {
             width: 100%;
-            max-width: 700px;
+            max-width: 1200px;
             height: calc(var(--vh, 1vh) * 100);
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
         }
 
         /* ===== HEADER ===== */
@@ -75,11 +80,12 @@
         .chat {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            overflow-x: hidden;
+            padding: 12px 0;
             display: flex;
             overflow-y: auto;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         /* ===== СООБЩЕНИЕ ===== */
@@ -92,27 +98,111 @@
             word-wrap: break-word;
         }
 
+        .message p {
+            margin: 0 0 8px 0;
+        }
+
+        .message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message h1,
+        .message h2,
+        .message h3 {
+            margin: 10px 0 8px 0;
+            line-height: 1.25;
+        }
+
+        .message h1 { font-size: 1.2rem; }
+        .message h2 { font-size: 1.1rem; }
+        .message h3 { font-size: 1rem; }
+
+        .message blockquote {
+            margin: 8px 0;
+            padding: 6px 10px;
+            border-left: 3px solid var(--sl-color-primary-500);
+            background-color: rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+        }
+
+        .message pre {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            background-color: rgba(0, 0, 0, 0.25);
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .message code {
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 0.92em;
+            padding: 1px 4px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.18);
+        }
+
+        .message pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message hr {
+            border: 0;
+            border-top: 1px solid var(--sl-color-neutral-400);
+            margin: 10px 0;
+        }
+
         .message.user {
             align-self: flex-end;
-            background-color: var(--sl-color-primary-600);
-            color: white;
+            background-color: #303030;
+            color: #f5f5f5;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-width: min(72%, 760px);
+            margin-right: clamp(12px, 4vw, 120px);
         }
 
         .message.assistant {
-            align-self: flex-start;
-            background-color: var(--sl-color-neutral-200);
+            align-self: stretch;
+            width: 100%;
+            max-width: 100%;
+            background: transparent;
+            border-radius: 0;
+            padding: 8px clamp(12px, 4vw, 120px);
+            box-sizing: border-box;
+        }
+
+        .message.assistant > * {
+            max-width: 760px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         /* ===== INPUT ===== */
         .input-area {
-            display: flex;
-            gap: 8px;
-            padding: 10px;
-            border-top: 1px solid var(--sl-color-neutral-200);
-            padding-bottom: env(safe-area-inset-bottom);
+            padding: 10px 0;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom));
         }
 
-        sl-input {
+        .input-area::before {
+            content: "";
+            display: block;
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto 10px auto;
+            border-top: 1px solid var(--sl-color-neutral-200);
+        }
+
+        .input-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        sl-textarea#input {
             flex: 1;
         }
 
@@ -121,9 +211,28 @@
             overflow-y: auto;
         }
 
-        .input-area {
-            align-items: flex-end;
+        @media (max-width: 768px) {
+            html {
+                font-size: 18px;
+            }
+            .message h1 { font-size: 1.4rem; }
+            .message h2 { font-size: 1.3rem; }
+            .message h3 { font-size: 1.2rem; }
+
+            .message pre {
+                font-size: 14px;
+            }
+
+            .message code {
+                font-size: 1.0em;
+            }
         }
+
+        sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+
     </style>
 </head>
 <body>
@@ -158,6 +267,7 @@
     <div id="chat" class="chat"></div>
 
     <div class="input-area">
+        <div class="input-inner">
         <sl-textarea
             id="input"
             placeholder="Напишите сообщение..."
@@ -170,6 +280,7 @@
             spellcheck="false"
         ></sl-textarea>
         <sl-button variant="primary" id="send-btn">Отправить</sl-button>
+        </div>
     </div>
 </div>
 
@@ -266,12 +377,119 @@
     function addMessage(role, text) {
         const div = document.createElement("div");
         div.className = `message ${role}`;
-        div.innerText = text;
+        div.innerHTML = renderMarkdown(text);
 
         chat.appendChild(div);
 
         // автоскролл вниз
         chat.scrollTop = chat.scrollHeight;
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function parseInline(text) {
+        return text
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    }
+
+    function renderMarkdown(rawText) {
+        const src = escapeHtml(rawText || "");
+        const codeBlocks = [];
+        const textWithoutCode = src.replace(/```([\s\S]*?)```/g, (_, code) => {
+            const token = `@@CODEBLOCK${codeBlocks.length}@@`;
+            codeBlocks.push(`<pre><code>${code.trimEnd()}</code></pre>`);
+            return token;
+        });
+
+        const lines = textWithoutCode.split(/\r?\n/);
+        const html = [];
+        let inList = false;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                continue;
+            }
+
+            if (/^@@CODEBLOCK\d+@@$/.test(trimmed)) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push(trimmed);
+                continue;
+            }
+
+            if (/^---+$/.test(trimmed)) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push("<hr>");
+                continue;
+            }
+
+            const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+            if (headingMatch) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                const level = headingMatch[1].length;
+                html.push(`<h${level}>${parseInline(headingMatch[2])}</h${level}>`);
+                continue;
+            }
+
+            const quoteMatch = trimmed.match(/^>\s?(.*)$/);
+            if (quoteMatch) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push(`<blockquote>${parseInline(quoteMatch[1])}</blockquote>`);
+                continue;
+            }
+
+            const listMatch = trimmed.match(/^[-*вЂўвЂ‘]\s+(.+)$/);
+            if (listMatch) {
+                if (!inList) {
+                    html.push("<ul>");
+                    inList = true;
+                }
+                html.push(`<li>${parseInline(listMatch[1])}</li>`);
+                continue;
+            }
+
+            if (inList) {
+                html.push("</ul>");
+                inList = false;
+            }
+            html.push(`<p>${parseInline(trimmed)}</p>`);
+        }
+
+        if (inList) {
+            html.push("</ul>");
+        }
+
+        let result = html.join("\n");
+        codeBlocks.forEach((block, idx) => {
+            result = result.replace(`@@CODEBLOCK${idx}@@`, block);
+        });
+        return result;
     }
 
     function setViewportHeight() {
@@ -320,3 +538,6 @@
 </script>
 </body>
 </html>
+
+
+
