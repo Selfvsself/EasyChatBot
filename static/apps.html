@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Приложения</title>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+    <script type="module"
+            src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: var(--sl-font-sans);
+            background-color: var(--sl-color-neutral-0);
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+            font-weight: var(--sl-font-weight-semibold);
+        }
+
+        .header-title-wrapper {
+            flex: 1;
+            text-align: center;
+        }
+
+        .app-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin: var(--sl-spacing-medium);
+        }
+
+        .app-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-radius: var(--sl-border-radius-medium);
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        .app-item:hover {
+            background-color: var(--sl-color-neutral-100);
+        }
+
+        .app-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .app-title {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .app-description {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
+        .app-list sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+
+        .empty {
+            text-align: center;
+            opacity: 0.5;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="app-header">
+        <div class="header-title-wrapper">
+            Приложения
+        </div>
+
+        <sl-dropdown placement="bottom-end">
+            <sl-button slot="trigger" variant="text" circle>
+                <sl-icon name="person-circle"></sl-icon>
+            </sl-button>
+
+            <sl-menu>
+            <sl-menu-item id="profile-btn">
+                <sl-icon name="person" slot="prefix"></sl-icon>
+                <span class="profile-text"></span>
+            </sl-menu-item>
+
+            <sl-divider></sl-divider>
+                <sl-menu-item id="logout-btn" variant="danger">
+                    <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                    Выйти
+                </sl-menu-item>
+            </sl-menu>
+        </sl-dropdown>
+    </div>
+
+    <!-- LIST -->
+    <div id="apps" class="app-list">
+        <sl-spinner style="font-size: 2rem; margin: 20px auto;"></sl-spinner>
+    </div>
+
+</div>
+
+<script>
+    const LOGIN_URL = "/web/login";
+    const CHAT_URL = "/web/apps";
+    const API_APPS = "/api/apps";
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = LOGIN_URL;
+    }
+
+    const rawUserName = localStorage.getItem("username");
+
+    function truncate(text, maxLength = 20) {
+        if (!text) return "Профиль";
+        return text.length > maxLength
+            ? text.slice(0, maxLength) + "..."
+            : text;
+    }
+
+    const CURRENT_USER_NAME =
+        rawUserName && rawUserName !== "null" && rawUserName !== "undefined"
+            ? rawUserName
+            : "Профиль";
+
+    const profileText = document.querySelector(".profile-text");
+
+    profileText.textContent = truncate(CURRENT_USER_NAME);
+
+    const container = document.getElementById("apps");
+
+    loadApps();
+
+    async function loadApps() {
+        try {
+            const res = await fetch(API_APPS, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) throw new Error();
+
+            const data = await res.json();
+            container.innerHTML = "";
+
+            if (data.items.length === 0) {
+                container.innerHTML = '<div class="empty">Нет доступных приложений</div>';
+                return;
+            }
+
+            data.items.forEach(app => {
+                addApp(app);
+            });
+
+        } catch (e) {
+            notify("Ошибка загрузки приложений", "danger");
+        }
+    }
+
+    function addApp(app) {
+        const item = document.createElement("div");
+        item.className = "app-item";
+
+        item.innerHTML = `
+            <div class="app-left">
+                <sl-icon name="${app.icon || 'grid'}"></sl-icon>
+                <div>
+                    <div class="app-title">${app.name}</div>
+                    <div class="app-description">${app.description || ""}</div>
+                </div>
+            </div>
+
+            <sl-icon name="chevron-right"></sl-icon>
+        `;
+
+        item.addEventListener("click", () => {
+            window.location.href = CHAT_URL + `/${app.id}/chat`;
+        });
+
+        container.appendChild(item);
+    }
+
+    async function notify(message, variant = 'primary', duration = 3000) {
+        const alert = Object.assign(document.createElement('sl-alert'), {
+            variant,
+            closable: true,
+            duration,
+            innerHTML: `<sl-icon name="info-circle" slot="icon"></sl-icon>${message}`
+        });
+
+        document.body.append(alert);
+        await customElements.whenDefined('sl-alert');
+        return alert.toast();
+    }
+
+    async function handleLogout() {
+    try {
+        const res = await fetch("/api/auth/logout", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (res.ok) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+
+            window.location.href = LOGIN_URL;
+        }
+    } catch (error) {
+        console.error("Ошибка при выходе:", error);
+        localStorage.clear();
+        window.location.href = LOGIN_URL;
+    }
+    }
+
+    document.getElementById("logout-btn").addEventListener('click', handleLogout);
+</script>
+</body>
+</html>

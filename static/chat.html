@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои диалоги</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+    <script type="module"
+            src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: var(--sl-font-sans);
+            background-color: var(--sl-color-neutral-0);
+            display: flex;
+            justify-content: center;
+        }
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+
+            font-size: var(--sl-font-size-medium);
+            font-weight: var(--sl-font-weight-semibold);
+        }
+        .header-title-wrapper {
+            flex: 1;
+            text-align: center;
+            overflow: hidden;
+            margin-left: var(--sl-spacing-small);
+        }
+
+        #header-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        .header-section {
+            display: flex;
+            gap: var(--sl-spacing-small);
+            margin: var(--sl-spacing-small);
+        }
+        @media (max-width: 480px) {
+            body {
+
+            }
+
+            .header-section {
+                flex-direction: column;
+                gap: var(--sl-spacing-medium);
+            }
+
+            sl-input, sl-button {
+                width: 100%;
+            }
+        }
+        #profile-btn {
+            max-width: 160px; /* можно 120–180 подобрать */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-text {
+            display: inline-block;
+            max-width: 140px;
+
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin: var(--sl-spacing-medium);
+        }
+        .chat-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 10px 12px;
+            border-radius: var(--sl-border-radius-medium);
+
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .chat-item:hover {
+            background-color: var(--sl-color-neutral-100);
+        }
+
+        .chat-item:active {
+            transform: scale(0.98);
+        }
+        .chat-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+        }
+        .chat-left sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+        .chat-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        /* правая часть */
+        .chat-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--sl-color-neutral-500);
+        }
+
+        .empty {
+            text-align: center;
+            opacity: 0.5;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="app-header">
+        <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
+
+        <div class="header-title-wrapper">
+            <div id="header-title">Мои диалоги</div>
+        </div>
+        <sl-dropdown placement="bottom-end">
+            <sl-button slot="trigger" variant="text" circle>
+                <sl-icon name="person-circle"></sl-icon>
+            </sl-button>
+
+            <sl-menu>
+            <sl-menu-item id="profile-btn">
+                <sl-icon name="person" slot="prefix"></sl-icon>
+                <span class="profile-text"></span>
+            </sl-menu-item>
+
+            <sl-divider></sl-divider>
+                <sl-menu-item id="logout-btn" variant="danger">
+                    <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                    Выйти
+                </sl-menu-item>
+            </sl-menu>
+        </sl-dropdown>
+    </div>
+    <div class="header-section">
+        <sl-input id="input" placeholder="Название нового чата..." clearable style="flex-grow: 1;">
+            <sl-icon name="chat-dots" slot="prefix"></sl-icon>
+        </sl-input>
+        <sl-button variant="success" id="create-btn">
+            <sl-icon name="plus-lg" slot="prefix"></sl-icon>
+            Создать
+        </sl-button>
+    </div>
+
+    <div id="chats" class="chat-list">
+        <sl-spinner style="font-size: 2rem; margin: 20px auto; display: block;"></sl-spinner>
+    </div>
+</div>
+
+<script>
+    const LOGIN_URL = "/web/login";
+    const MESSAGE_URL = "/web/apps";
+    const API_APPS = "/api/apps";
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = LOGIN_URL;
+    }
+
+    const CURRENT_APP_ID = "{{ app_id }}";
+    const rawName = "{{ app_name }}";
+
+    const CURRENT_CHAT_NAME =
+        rawName && rawName !== "null" && rawName !== "undefined"
+            ? rawName
+            : "Чат";
+
+    const headerTitle = document.getElementById("header-title");
+    headerTitle.innerText = CURRENT_CHAT_NAME;
+
+    const chatsContainer = document.getElementById("chats");
+    const createBtn = document.getElementById("create-btn");
+    const inputField = document.getElementById("input");
+
+    const rawUserName = localStorage.getItem("username");
+
+    function truncate(text, maxLength = 20) {
+        if (!text) return "Профиль";
+        return text.length > maxLength
+            ? text.slice(0, maxLength) + "..."
+            : text;
+    }
+
+    const CURRENT_USER_NAME =
+        rawUserName && rawUserName !== "null" && rawUserName !== "undefined"
+            ? rawUserName
+            : "Профиль";
+
+    const profileText = document.querySelector(".profile-text");
+
+    profileText.textContent = truncate(CURRENT_USER_NAME);
+
+    loadHistoryChats();
+
+    async function loadHistoryChats() {
+        try {
+            const res = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Ошибка загрузки');
+
+            const data = await res.json();
+            chatsContainer.innerHTML = '';
+
+            if (data.chats.length === 0) {
+                chatsContainer.innerHTML = '<div class="empty">У вас пока нет чатов</div>';
+                return;
+            }
+
+            data.chats.forEach(chat => addChat(chat.id, chat.title));
+
+        } catch (err) {
+            notify('Не удалось загрузить историю чатов', 'danger', 'cloud-slash');
+        }
+    }
+
+    async function createChat() {
+        const text = inputField.value.trim();
+        if (!text) return;
+
+        createBtn.loading = true;
+        try {
+            const res = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat`, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ title: text })
+            });
+            if (!res.ok) throw new Error('Ошибка создания');
+
+            const data = await res.json();
+            window.location.href = MESSAGE_URL + `/${CURRENT_APP_ID}/chat/${data.id}`;
+        } catch (err) {
+            notify('Ошибка при создании чата', 'danger', 'exclamation-triangle');
+        } finally {
+            createBtn.loading = false;
+        }
+    }
+
+    function addChat(id, title) {
+        const item = document.createElement("div");
+        item.className = "chat-item";
+
+        item.innerHTML = `
+            <div class="chat-left">
+                <sl-icon name="chat-left-text"></sl-icon>
+                <div class="chat-title">${title || 'Без названия'}</div>
+            </div>
+
+            <div class="chat-right">
+                <sl-icon name="chevron-right"></sl-icon>
+            </div>
+        `;
+
+        // Кликабельность всей строки
+        item.addEventListener("click", () => {
+            window.location.href = MESSAGE_URL + `/${CURRENT_APP_ID}/chat/${id}`;
+        });
+
+        chatsContainer.appendChild(item);
+    }
+
+    async function notify(message, variant = 'primary', icon = 'info-circle', duration = 3000) {
+      const alert = Object.assign(document.createElement('sl-alert'), {
+        variant: variant,
+        closable: true,
+        duration: duration,
+        innerHTML: `
+          <sl-icon name="${icon}" slot="icon"></sl-icon>
+          ${message}
+        `
+      });
+
+      document.body.append(alert);
+
+      await customElements.whenDefined('sl-alert');
+      return alert.toast();
+    }
+
+    createBtn.addEventListener('click', createChat);
+    inputField.addEventListener('sl-keydown', (event) => {
+        if (event.key === 'Enter') createChat();
+    });
+    document.getElementById("back-btn").onclick = () => {
+        window.location.href = MESSAGE_URL;
+    };
+    async function handleLogout() {
+    try {
+        const res = await fetch("/api/auth/logout", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (res.ok) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+
+            window.location.href = LOGIN_URL;
+        }
+    } catch (error) {
+        console.error("Ошибка при выходе:", error);
+        localStorage.clear();
+        window.location.href = LOGIN_URL;
+    }
+    }
+
+    document.getElementById("logout-btn").addEventListener('click', handleLogout);
+</script>
+</body>
+</html>

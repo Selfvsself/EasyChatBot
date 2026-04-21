@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+    <script type="module"
+            src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+    <style>
+    body {
+      font-family: var(--sl-font-sans);
+      background-color: var(--sl-color-neutral-0);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--sl-color-neutral-200);
+
+        font-size: var(--sl-font-size-large);
+        font-weight: var(--sl-font-weight-semibold);
+    }
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card [slot="header"] {
+      text-align: center;
+      font-size: var(--sl-font-size-x-large);
+      font-weight: var(--sl-font-weight-semibold);
+    }
+    sl-input, sl-button {
+      margin-bottom: var(--sl-spacing-medium);
+    }
+    sl-alert:not(:defined) {
+      display: none;
+    }
+    </style>
+</head>
+    <body>
+    <sl-card class="login-card">
+        <div slot="header">Вход</div>
+        <form id="login-form">
+            <sl-input
+              id="username"
+              name="username"
+              type="text"
+              label="Логин"
+              placeholder="Введите ваш логин"
+              required
+              help-text="Используйте имя пользователя, указанное при регистрации">
+              <sl-icon name="person" slot="prefix"></sl-icon>
+            </sl-input>
+            <sl-input
+              id="password"
+              name="password"
+              type="password"
+              label="Пароль"
+              placeholder="Введите пароль"
+              password-toggle
+              required>
+              <sl-icon name="lock" slot="prefix"></sl-icon>
+            </sl-input>
+            <sl-button variant="primary" type="submit" style="width: 100%;">
+              Войти
+            </sl-button>
+
+            <div id="chat"></div>
+        </form>
+    </sl-card>
+<script>
+    const APPS_URL = "/web/apps";
+    const API_LOGIN = "/api/auth/login";
+    const token = localStorage.getItem("token");
+    if (token) {
+        //window.location.href = APPS_URL;
+    }
+
+
+    const form = document.querySelector('#login-form');
+    const submitBtn = form.querySelector('sl-button[type="submit"]');
+
+    async function notify(message, variant = 'primary', icon = 'info-circle', duration = 3000) {
+      const alert = Object.assign(document.createElement('sl-alert'), {
+        variant: variant,
+        closable: true,
+        duration: duration,
+        innerHTML: `
+          <sl-icon name="${icon}" slot="icon"></sl-icon>
+          ${message}
+        `
+      });
+
+      document.body.append(alert);
+
+      await customElements.whenDefined('sl-alert');
+      return alert.toast();
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      submitBtn.loading = true;
+
+      try {
+        const res = await fetch(API_LOGIN, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("token", data.access_token);
+          localStorage.setItem("username", data.username);
+
+          window.location.href = APPS_URL;
+        } else {
+          notify('Ошибка входа! Проверьте логин и пароль.', 'danger', 'exclamation-octagon');
+        }
+      } catch (error) {
+        console.error("Ошибка сети:", error);
+        notify('Не удалось связаться с сервером.', 'danger', 'wifi-off');
+      } finally {
+        submitBtn.loading = false;
+      }
+    });
+</script>
+</body>
+</html>
