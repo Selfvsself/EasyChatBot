@@ -54,7 +54,7 @@ def get_all_chats(
 
     chats = service.get_chats_by_user_and_app(app_id, user.id, limit, offset)
 
-    return {"chats": chats}
+    return {"chats": list(reversed(chats))}
 
 
 @router.post("/{app_id}/chat", response_model=ChatItem)

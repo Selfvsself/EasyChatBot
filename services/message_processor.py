@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-from handlers.agent_handler import AgentHandler
 from handlers.default_handler import DefaultHandler
 from handlers.translator_handler import TranslatorHandler
 
@@ -20,7 +19,6 @@ class MessageProcessor:
             "english-translator": TranslatorHandler(llm_client, message_repo),
             "russian-translator": TranslatorHandler(llm_client, message_repo),
             "duckduckgo-search": DefaultHandler(llm_client, message_repo),
-            "agent-prototype": AgentHandler(llm_client, message_repo),
             "default": DefaultHandler(llm_client, message_repo)
         }
         self.tools = {
