@@ -20,6 +20,9 @@ class MessageProcessor:
             "english-translator": TranslatorHandler(llm_client, message_repo),
             "russian-translator": TranslatorHandler(llm_client, message_repo),
             "duckduckgo-search": DefaultHandler(llm_client, message_repo),
+            "jira-search": DefaultHandler(llm_client, message_repo),
+            "confluence-search": DefaultHandler(llm_client, message_repo),
+            "jira-confluence-search": DefaultHandler(llm_client, message_repo),
             "default": DefaultHandler(llm_client, message_repo)
         }
         self.tools = {

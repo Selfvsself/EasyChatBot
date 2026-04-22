@@ -367,95 +367,53 @@ class JiraSearchTool(BaseTool):
         )
 
     async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
-        working_query = query
-        last_analysis: JiraSearchTool.AnalysisResult | None = None
-        last_jql = self._build_jql(query)
-        last_detailed: list[dict[str, Any]] = []
-
-        for attempt in range(1, self.MAX_REFINE_ATTEMPTS + 1):
-            is_last_attempt = attempt == self.MAX_REFINE_ATTEMPTS
-
-            if stage_callback:
-                await stage_callback(
-                    stage="jira_query_planning",
-                    metadata={"attempt": attempt, "query": working_query},
-                )
-
-            jql = await self._plan_jql_with_llm(working_query)
-            last_jql = jql or self._build_jql(working_query)
-
-            if stage_callback:
-                await stage_callback(
-                    stage="jira_query_running",
-                    metadata={"attempt": attempt, "jql": last_jql},
-                )
-
-            issues, error = await self._search_by_jql(last_jql)
-            if error:
-                return f"Jira search tool error: {error}"
-
-            detailed = await self._fetch_many_issue_details(issues, stage_callback=stage_callback)
-            last_detailed = detailed
-
-            if stage_callback and detailed:
-                await stage_callback(
-                    stage="sources_used",
-                    metadata={
-                        "sources": [
-                            {
-                                "title": f"{item['key']} - {item['summary']}",
-                                "url": item["url"],
-                            }
-                            for item in detailed
-                        ]
-                    },
-                )
-
-            if is_last_attempt:
-                best_effort = await self._best_effort_answer_with_llm(query, last_jql, detailed)
-                ticket_line = ", ".join(i["key"] for i in detailed) if detailed else "none"
-                return (
-                    f"JQL used: {last_jql}\n"
-                    f"Tickets inspected: {ticket_line}\n"
-                    f"Evidence: n/a\n\n"
-                    f"Answer:\n{best_effort}"
-                )
-
-            if stage_callback:
-                await stage_callback(
-                    stage="jira_validating",
-                    metadata={"attempt": attempt, "tickets": [i["key"] for i in detailed]},
-                )
-
-            analysis = await self._analyze_with_llm(query, last_jql, detailed)
-            last_analysis = analysis
-
-            should_retry = (
-                attempt < self.MAX_REFINE_ATTEMPTS
-                and (analysis.needs_retry or not analysis.is_complete or not analysis.is_correct)
-                and bool((analysis.retry_query or "").strip())
-            )
-            if should_retry:
-                working_query = analysis.retry_query.strip()
-                continue
-
-            evidence_line = ", ".join(analysis.evidence) if analysis.evidence else "n/a"
-            ticket_line = ", ".join(i["key"] for i in detailed) if detailed else "none"
-            return (
-                f"JQL used: {last_jql}\n"
-                f"Tickets inspected: {ticket_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{analysis.answer}"
+        if stage_callback:
+            await stage_callback(
+                stage="jira_query_planning",
+                metadata={"attempt": 1, "query": query},
             )
 
-        if last_analysis:
-            evidence_line = ", ".join(last_analysis.evidence) if last_analysis.evidence else "n/a"
-            ticket_line = ", ".join(i["key"] for i in last_detailed) if last_detailed else "none"
-            return (
-                f"JQL used: {last_jql}\n"
-                f"Tickets inspected: {ticket_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{last_analysis.answer}"
+        jql = await self._plan_jql_with_llm(query)
+        final_jql = jql or self._build_jql(query)
+
+        if stage_callback:
+            await stage_callback(
+                stage="jira_query_running",
+                metadata={"attempt": 1, "jql": final_jql},
             )
 
-        return "Jira search completed but no answer could be produced."
+        issues, error = await self._search_by_jql(final_jql)
+        if error:
+            return f"Jira search tool error: {error}"
+
+        detailed = await self._fetch_many_issue_details(issues, stage_callback=stage_callback)
+        if stage_callback and detailed:
+            await stage_callback(
+                stage="sources_used",
+                metadata={
+                    "sources": [
+                        {
+                            "title": f"{item['key']} - {item['summary']}",
+                            "url": item["url"],
+                        }
+                        for item in detailed
+                    ]
+                },
+            )
+
+        if not detailed:
+            return f"JQL used: {final_jql}\n\nNo Jira ticket details found."
+
+        blocks = []
+        for idx, issue in enumerate(detailed, start=1):
+            comment_block = "\n".join(f"- {c}" for c in issue["comments"]) if issue["comments"] else "- no comments"
+            blocks.append(
+                f"[Issue {idx}] {issue['key']} - {issue['summary']}\n"
+                f"Status: {issue['status']}; Priority: {issue['priority']}; Assignee: {issue['assignee']}\n"
+                f"Updated: {issue['updated']}\n"
+                f"URL: {issue['url']}\n"
+                f"Description: {issue['description'] or 'n/a'}\n"
+                f"Comments:\n{comment_block}"
+            )
+
+        return f"JQL used: {final_jql}\n\n" + "\n\n".join(blocks)

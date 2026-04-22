@@ -335,94 +335,33 @@ class WebSearchTool(BaseTool):
         )
 
     async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
-        working_query = query
-        last_analysis: WebSearchTool.AnalysisResult | None = None
-        last_search_query = query
-        last_sources: list[dict[str, str]] = []
-
-        for attempt in range(1, self.MAX_REFINE_ATTEMPTS + 1):
-            is_last_attempt = attempt == self.MAX_REFINE_ATTEMPTS
-
-            if stage_callback:
-                await stage_callback(
-                    stage="web_query_planning",
-                    metadata={"attempt": attempt, "query": working_query},
-                )
-
-            search_query = await self._plan_search_query_with_llm(working_query)
-            last_search_query = search_query
-
-            if stage_callback:
-                await stage_callback(
-                    stage="web_search_running",
-                    metadata={"attempt": attempt, "query": search_query},
-                )
-
-            web_results = await self.search_web(search_query)
-            if not web_results:
-                if attempt < self.MAX_REFINE_ATTEMPTS:
-                    working_query = f"{working_query} latest updates"
-                    continue
-                return "No web search results."
-
-            loaded_sources = await self._load_sources_for_agent(web_results, stage_callback=stage_callback)
-            last_sources = loaded_sources
-
-            if is_last_attempt:
-                best_effort = await self._best_effort_answer_with_llm(
-                    user_query=query,
-                    search_query=search_query,
-                    web_results=web_results,
-                    sources=loaded_sources,
-                )
-                source_line = ", ".join(src["url"] for src in loaded_sources) if loaded_sources else "none"
-                return (
-                    f"Search query used: {search_query}\n"
-                    f"Sources read: {source_line}\n"
-                    f"Evidence: n/a\n\n"
-                    f"Answer:\n{best_effort}"
-                )
-
-            if stage_callback:
-                await stage_callback(
-                    stage="web_validating",
-                    metadata={"attempt": attempt},
-                )
-
-            analysis = await self._analyze_sources_with_llm(
-                user_query=query,
-                search_query=search_query,
-                web_results=web_results,
-                sources=loaded_sources,
-            )
-            last_analysis = analysis
-
-            should_retry = (
-                attempt < self.MAX_REFINE_ATTEMPTS
-                and (analysis.needs_retry or not analysis.is_complete or not analysis.is_correct)
-                and bool((analysis.retry_query or "").strip())
-            )
-            if should_retry:
-                working_query = analysis.retry_query.strip()
-                continue
-
-            evidence_line = ", ".join(analysis.evidence) if analysis.evidence else "n/a"
-            source_line = ", ".join(src["url"] for src in loaded_sources) if loaded_sources else "none"
-            return (
-                f"Search query used: {search_query}\n"
-                f"Sources read: {source_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{analysis.answer}"
+        if stage_callback:
+            await stage_callback(
+                stage="web_query_planning",
+                metadata={"attempt": 1, "query": query},
             )
 
-        if last_analysis:
-            evidence_line = ", ".join(last_analysis.evidence) if last_analysis.evidence else "n/a"
-            source_line = ", ".join(src["url"] for src in last_sources) if last_sources else "none"
-            return (
-                f"Search query used: {last_search_query}\n"
-                f"Sources read: {source_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{last_analysis.answer}"
+        search_query = await self._plan_search_query_with_llm(query)
+
+        if stage_callback:
+            await stage_callback(
+                stage="web_search_running",
+                metadata={"attempt": 1, "query": search_query},
             )
 
-        return "Web search completed but no answer could be produced."
+        web_results = await self.search_web(search_query)
+        if not web_results:
+            return "No web search results."
+
+        loaded_sources = await self._load_sources_for_agent(web_results, stage_callback=stage_callback)
+        compact_sources = []
+        for idx, src in enumerate(loaded_sources, start=1):
+            compact_sources.append(
+                f"[Source {idx}] {src['title']}\nURL: {src['url']}\nTEXT: {src['text']}"
+            )
+
+        return (
+            f"Search query used: {search_query}\n\n"
+            f"Search results:\n{self.format_results(web_results)}\n\n"
+            + ("Extracted source text:\n" + "\n\n".join(compact_sources) if compact_sources else "No source text extracted.")
+        )

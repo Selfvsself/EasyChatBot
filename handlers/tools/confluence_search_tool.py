@@ -390,89 +390,45 @@ class ConfluenceSearchTool(BaseTool):
         )
 
     async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
-        working_query = query
-        last_analysis: ConfluenceSearchTool.AnalysisResult | None = None
-        last_cql = self._build_cql(query)
-        last_pages: list[dict[str, str]] = []
-
-        for attempt in range(1, self.MAX_REFINE_ATTEMPTS + 1):
-            is_last_attempt = attempt == self.MAX_REFINE_ATTEMPTS
-
-            if stage_callback:
-                await stage_callback(
-                    stage="confluence_query_planning",
-                    metadata={"attempt": attempt, "query": working_query},
-                )
-
-            cql = await self._plan_cql_with_llm(working_query)
-            last_cql = cql or self._build_cql(working_query)
-
-            if stage_callback:
-                await stage_callback(
-                    stage="confluence_query_running",
-                    metadata={"attempt": attempt, "cql": last_cql},
-                )
-
-            pages, error = await self._search_by_cql(last_cql)
-            if error:
-                return f"Confluence search tool error: {error}"
-
-            detailed = await self._fetch_many_page_details(pages, stage_callback=stage_callback)
-            last_pages = detailed
-
-            if stage_callback and detailed:
-                await stage_callback(
-                    stage="sources_used",
-                    metadata={
-                        "sources": [{"title": p["title"], "url": p["url"]} for p in detailed if p.get("url")]
-                    },
-                )
-
-            if is_last_attempt:
-                best_effort = await self._best_effort_answer_with_llm(query, last_cql, detailed)
-                pages_line = ", ".join(p["id"] for p in detailed) if detailed else "none"
-                return (
-                    f"CQL used: {last_cql}\n"
-                    f"Pages inspected: {pages_line}\n"
-                    f"Evidence: n/a\n\n"
-                    f"Answer:\n{best_effort}"
-                )
-
-            if stage_callback:
-                await stage_callback(
-                    stage="confluence_validating",
-                    metadata={"attempt": attempt, "pages": [p["id"] for p in detailed]},
-                )
-
-            analysis = await self._analyze_with_llm(query, last_cql, detailed)
-            last_analysis = analysis
-
-            should_retry = (
-                attempt < self.MAX_REFINE_ATTEMPTS
-                and (analysis.needs_retry or not analysis.is_complete or not analysis.is_correct)
-                and bool((analysis.retry_query or "").strip())
-            )
-            if should_retry:
-                working_query = analysis.retry_query.strip()
-                continue
-
-            evidence_line = ", ".join(analysis.evidence) if analysis.evidence else "n/a"
-            pages_line = ", ".join(p["id"] for p in detailed) if detailed else "none"
-            return (
-                f"CQL used: {last_cql}\n"
-                f"Pages inspected: {pages_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{analysis.answer}"
+        if stage_callback:
+            await stage_callback(
+                stage="confluence_query_planning",
+                metadata={"attempt": 1, "query": query},
             )
 
-        if last_analysis:
-            evidence_line = ", ".join(last_analysis.evidence) if last_analysis.evidence else "n/a"
-            pages_line = ", ".join(p["id"] for p in last_pages) if last_pages else "none"
-            return (
-                f"CQL used: {last_cql}\n"
-                f"Pages inspected: {pages_line}\n"
-                f"Evidence: {evidence_line}\n\n"
-                f"Answer:\n{last_analysis.answer}"
+        cql = await self._plan_cql_with_llm(query)
+        final_cql = cql or self._build_cql(query)
+
+        if stage_callback:
+            await stage_callback(
+                stage="confluence_query_running",
+                metadata={"attempt": 1, "cql": final_cql},
             )
 
-        return "Confluence search completed but no answer could be produced."
+        pages, error = await self._search_by_cql(final_cql)
+        if error:
+            return f"Confluence search tool error: {error}"
+
+        detailed = await self._fetch_many_page_details(pages, stage_callback=stage_callback)
+
+        if stage_callback and detailed:
+            await stage_callback(
+                stage="sources_used",
+                metadata={
+                    "sources": [{"title": p["title"], "url": p["url"]} for p in detailed if p.get("url")]
+                },
+            )
+
+        if not detailed:
+            return f"CQL used: {final_cql}\n\nNo Confluence page details found."
+
+        blocks = []
+        for idx, page in enumerate(detailed, start=1):
+            blocks.append(
+                f"[Page {idx}] {page['title']}\n"
+                f"ID: {page['id']}; Space: {page['space']}; Version: {page['version']}\n"
+                f"URL: {page['url']}\n"
+                f"TEXT:\n{page['text']}"
+            )
+
+        return f"CQL used: {final_cql}\n\n" + "\n\n".join(blocks)
