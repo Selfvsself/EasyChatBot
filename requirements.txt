@@ -12,3 +12,4 @@ PyJWT==2.12.1
 passlib==1.7.4
 ddgs==9.14.1
 beautifulsoup4==4.14.3
+langchain_ollama==1.1.0
