@@ -68,5 +68,5 @@ class BaseHandler:
         )
 
     @abstractmethod
-    async def handle(self, chat, app, text, tools):
+    async def handle(self, chat, app, text, tools, stage_callback=None):
         pass

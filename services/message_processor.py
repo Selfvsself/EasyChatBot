@@ -26,7 +26,7 @@ class MessageProcessor:
             "jira-search": JiraSearchTool(llm_client, message_repo)
         }
 
-    async def process(self, chat_id: str, user_id: str, text) -> str:
+    async def process(self, chat_id: str, user_id: str, text, stage_callback=None) -> str:
         chat = self.chat_repo.get_by_id(chat_id)
 
         app = self.app_repo.get_by_id(chat.app_id)
@@ -40,4 +40,4 @@ class MessageProcessor:
         )
 
         handler = self.handlers.get(app.code, self.handlers["default"])
-        return await handler.handle(chat, app_ctx, text, tools)
+        return await handler.handle(chat, app_ctx, text, tools, stage_callback=stage_callback)

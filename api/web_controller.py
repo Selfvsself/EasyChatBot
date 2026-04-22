@@ -106,6 +106,7 @@ def chat_page(app_id: UUID,
         "message.html",
         {
             "app_id": app_id,
+            "app_code": app.code,
             "app_chat_mode": app.chat_mode,
             "chat_name": chat.title,
             "chat_id": chat_id

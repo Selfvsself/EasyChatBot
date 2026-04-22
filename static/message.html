@@ -202,6 +202,54 @@
             align-items: flex-end;
         }
 
+        .bot-status {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto 8px auto;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            color: var(--sl-color-neutral-600);
+            font-size: 13px;
+        }
+
+        .bot-status.active {
+            display: flex;
+        }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .typing-dots span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--sl-color-neutral-500);
+            opacity: 0.35;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 80%, 100% {
+                opacity: 0.35;
+                transform: scale(1);
+            }
+            40% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
         sl-textarea#input {
             flex: 1;
         }
@@ -267,6 +315,11 @@
     <div id="chat" class="chat"></div>
 
     <div class="input-area">
+        <div id="bot-status" class="bot-status" aria-live="polite">
+            <sl-icon id="bot-status-icon" name="cpu"></sl-icon>
+            <span id="bot-status-text">Бот думает</span>
+            <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        </div>
         <div class="input-inner">
         <sl-textarea
             id="input"
@@ -296,6 +349,7 @@
 
     const CURRENT_CHAT_ID = "{{ chat_id }}";
     const CURRENT_APP_ID = "{{ app_id }}";
+    const CURRENT_APP_CODE = "{{ app_code }}";
     const CURRENT_APP_MODE = "{{ app_chat_mode }}";
     const rawName = "{{ chat_name }}";
 
@@ -326,12 +380,91 @@
     const chat = document.getElementById("chat");
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("send-btn");
+    const botStatus = document.getElementById("bot-status");
+    const botStatusText = document.getElementById("bot-status-text");
+    const botStatusIcon = document.getElementById("bot-status-icon");
+
+    const STATUS_MAP = {
+        thinking: { text: "Бот думает", icon: "cpu" },
+        searching: { text: "Поиск в интернете", icon: "globe2" },
+        jira: { text: "Поиск в Jira", icon: "kanban" },
+        tooling: { text: "Выполняю инструмент", icon: "tools" },
+        typing: { text: "Бот печатает", icon: "keyboard" }
+    };
+
+    let assistantPending = false;
+
+    function setBotStatus(state) {
+        const config = STATUS_MAP[state];
+        if (!config) return;
+
+        botStatusText.textContent = config.text;
+        botStatusIcon.name = config.icon;
+        botStatus.classList.add("active");
+    }
+
+    function clearBotStatus() {
+        assistantPending = false;
+        botStatus.classList.remove("active");
+    }
+
+    function startAssistantStatusFlow() {
+        assistantPending = true;
+        setBotStatus("thinking");
+    }
+
+    function applyAgentStage(msg) {
+        if (!assistantPending) {
+            assistantPending = true;
+        }
+
+        const stage = msg.stage;
+        if (stage === "thinking") {
+            setBotStatus("thinking");
+            return;
+        }
+
+        if (stage === "typing") {
+            setBotStatus("typing");
+            return;
+        }
+
+        if (stage === "tool_running") {
+            const toolName = (msg.metadata?.tool || "").toLowerCase();
+            if (toolName === "web_search") {
+                setBotStatus("searching");
+                return;
+            }
+            if (toolName === "jira_search") {
+                setBotStatus("jira");
+                return;
+            }
+            setBotStatus("tooling");
+        }
+    }
 
     const ws = new WebSocket(`ws://${location.host}${API_APPS}/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/ws?token=${token}`);
 
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        if (msg.event === "agent_stage") {
+            applyAgentStage(msg);
+            return;
+        }
+
         addMessage(msg.role, msg.text);
+
+        if (msg.role === "assistant") {
+            clearBotStatus();
+        }
+    };
+
+    ws.onerror = () => {
+        clearBotStatus();
+    };
+
+    ws.onclose = () => {
+        clearBotStatus();
     };
 
     loadHistory();
@@ -358,20 +491,32 @@
         }
     }
 
-    function send() {
+    async function send() {
         const text = input.value.trim();
         if (!text) return;
 
-        fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/send`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ text })
-        });
+        startAssistantStatusFlow();
 
-        input.value = "";
+        try {
+            const response = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ text })
+            });
+
+            if (!response.ok) {
+                clearBotStatus();
+                return;
+            }
+
+            input.value = "";
+        } catch (error) {
+            clearBotStatus();
+            console.error(error);
+        }
     }
 
     function addMessage(role, text) {

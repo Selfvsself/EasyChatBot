@@ -13,7 +13,12 @@ class AgentOrchestrator:
         self.max_iterations = max_iterations
 
     @staticmethod
-    def _build_tools(chat, app, tools: Iterable) -> list[StructuredTool]:
+    async def _emit_stage(stage_callback, stage: str, metadata: dict | None = None):
+        if stage_callback:
+            await stage_callback(stage=stage, metadata=metadata or {})
+
+    @staticmethod
+    def _build_tools(chat, app, tools: Iterable, stage_callback=None) -> list[StructuredTool]:
         tool_defs: list[StructuredTool] = []
 
         for tool in tools:
@@ -21,6 +26,14 @@ class AgentOrchestrator:
 
             if hasattr(tool, "run_for_agent"):
                 async def _runner(query: str, _tool=tool):
+                    await AgentOrchestrator._emit_stage(
+                        stage_callback,
+                        stage="tool_running",
+                        metadata={
+                            "tool": getattr(_tool, "agent_tool_name", _tool.__class__.__name__.lower()),
+                            "query": query,
+                        },
+                    )
                     return await _tool.run_for_agent(query, chat=chat, app=app)
 
                 description = (
@@ -44,9 +57,12 @@ class AgentOrchestrator:
                 return message.content
         return ""
 
-    async def run(self, base_messages, chat, app, tools) -> str:
-        lc_tools = self._build_tools(chat=chat, app=app, tools=tools)
+    async def run(self, base_messages, chat, app, tools, stage_callback=None) -> str:
+        await self._emit_stage(stage_callback, stage="thinking")
+
+        lc_tools = self._build_tools(chat=chat, app=app, tools=tools, stage_callback=stage_callback)
         if not lc_tools:
+            await self._emit_stage(stage_callback, stage="typing")
             response = await self.llm_client.chat(base_messages)
             return response
 
@@ -62,5 +78,6 @@ class AgentOrchestrator:
                 "recursion_limit": self.max_iterations * 2 + 2
             },
         )
+        await self._emit_stage(stage_callback, stage="typing")
         final = self._extract_final_text(result.get("messages", []))
         return final or "I could not produce a final answer."

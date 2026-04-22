@@ -69,10 +69,24 @@ async def run_worker():
                     app_tool_repo=app_tool_repo
                 )
 
+                async def emit_stage(stage: str, metadata: dict | None = None):
+                    payload = {
+                        "event": "agent_stage",
+                        "chat_id": chat_id,
+                        "user_id": user_id,
+                        "stage": stage,
+                        "metadata": metadata or {},
+                    }
+                    await producer.send_and_wait(
+                        settings.KAFKA_RESPONSE_TOPIC,
+                        json.dumps(payload).encode()
+                    )
+
                 response_text = await processor.process(
                     chat_id=chat_id,
                     user_id=user_id,
-                    text=text
+                    text=text,
+                    stage_callback=emit_stage,
                 )
 
                 # =========================

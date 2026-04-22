@@ -33,7 +33,7 @@ class TranslatorHandler(BaseHandler):
         except (json.JSONDecodeError, ValidationError, TypeError):
             return raw_text
 
-    async def handle(self, chat, app, text, tools):
+    async def handle(self, chat, app, text, tools, stage_callback=None):
         history = self.message_repo.get_by_chat(chat.id, limit=20)
         system_prompt = (
             f"{app.system_prompt}\n\n"
@@ -41,5 +41,11 @@ class TranslatorHandler(BaseHandler):
             "Preserve meaning, tone, and named entities accurately."
         )
         prompt = self.build_prompt(system=system_prompt, history=list(reversed(history)), text=text)
-        raw_answer = await self.orchestrator.run(base_messages=prompt, chat=chat, app=app, tools=tools)
+        raw_answer = await self.orchestrator.run(
+            base_messages=prompt,
+            chat=chat,
+            app=app,
+            tools=tools,
+            stage_callback=stage_callback,
+        )
         return self._extract_translation(raw_answer)

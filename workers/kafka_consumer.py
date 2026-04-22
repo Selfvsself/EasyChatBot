@@ -15,12 +15,17 @@ async def consume_and_dispatch(kafka, manager, db_factory):
             logging.warning("No user_id in message in chat %s", chat_id)
             continue
         text = data.get('text')
+        event = data.get("event")
 
         db = db_factory()
         try:
             chat_repo = ChatRepository(db)
             chat = chat_repo.get_by_id(chat_id)
             if chat.user_id == UUID(user_id):
+                if event == "agent_stage":
+                    await manager.send_to_user(chat_id, data)
+                    continue
+
                 msg_repo = MessageRepository(db)
 
                 added_msg = msg_repo.create_msg(
