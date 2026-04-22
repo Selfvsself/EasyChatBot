@@ -10,6 +10,12 @@ from .base_tool import BaseTool
 
 
 class WebSearchTool(BaseTool):
+    agent_tool_name = "web_search"
+    agent_tool_description = (
+        "Search the web for current/public information and return grounded snippets with URLs. "
+        "Use for facts, external references, and recent context."
+    )
+
     MAX_RESULTS = 5
     MAX_PAGES = 3
     MAX_PAGE_CHARS = 6000
@@ -158,3 +164,21 @@ class WebSearchTool(BaseTool):
             "Search results list:\n"
             f"{web_context}"
         )
+
+    async def run_for_agent(self, query: str, chat=None, app=None) -> str:
+        web_results = await self.search_web(query)
+        if not web_results:
+            return "No web search results."
+
+        loaded_sources = await self._load_sources(web_results)
+        lines = [self.format_results(web_results)]
+
+        if loaded_sources:
+            compact_sources = []
+            for idx, src in enumerate(loaded_sources, start=1):
+                compact_sources.append(
+                    f"[Source {idx}] {src['title']}\nURL: {src['url']}\nTEXT: {src['text']}"
+                )
+            lines.append("Extracted source text:\n" + "\n\n".join(compact_sources))
+
+        return "\n\n".join(lines)

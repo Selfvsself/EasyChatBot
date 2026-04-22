@@ -7,6 +7,12 @@ from .base_tool import BaseTool
 
 
 class JiraSearchTool(BaseTool):
+    agent_tool_name = "jira_search"
+    agent_tool_description = (
+        "Search Jira issues by natural language or explicit JQL (prefix with JQL:). "
+        "Returns issue keys, status, assignee, priority, updated timestamp, and URL."
+    )
+
     MAX_RESULTS = 5
     HTTP_TIMEOUT = 15.0
 
@@ -131,3 +137,9 @@ class JiraSearchTool(BaseTool):
             "If no relevant ticket is present, say so clearly.\n\n"
             f"{self._format_results(results)}"
         )
+
+    async def run_for_agent(self, query: str, chat=None, app=None) -> str:
+        results, error = await self._search(query)
+        if error:
+            return f"Jira search tool error: {error}"
+        return self._format_results(results)

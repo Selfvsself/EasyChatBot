@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+from typing import Iterable
+
+from langchain_core.messages import AIMessage
+from langchain_core.tools import StructuredTool
+from langgraph.prebuilt import create_react_agent
+
+
+class AgentOrchestrator:
+    def __init__(self, llm_client, max_iterations: int = 3):
+        self.llm_client = llm_client
+        self.max_iterations = max_iterations
+
+    @staticmethod
+    def _build_tools(chat, app, tools: Iterable) -> list[StructuredTool]:
+        tool_defs: list[StructuredTool] = []
+
+        for tool in tools:
+            tool_name = tool.__class__.__name__
+
+            if hasattr(tool, "run_for_agent"):
+                async def _runner(query: str, _tool=tool):
+                    return await _tool.run_for_agent(query, chat=chat, app=app)
+
+                description = (
+                    f"Use this tool when you need {tool_name} data. "
+                    "Input must be a single concise natural language query."
+                )
+                tool_defs.append(
+                    StructuredTool.from_function(
+                        coroutine=_runner,
+                        name=getattr(tool, "agent_tool_name", tool_name.lower()),
+                        description=getattr(tool, "agent_tool_description", description),
+                    )
+                )
+
+        return tool_defs
+
+    @staticmethod
+    def _extract_final_text(messages) -> str:
+        for message in reversed(messages):
+            if isinstance(message, AIMessage) and isinstance(message.content, str) and message.content.strip():
+                return message.content
+        return ""
+
+    async def run(self, base_messages, chat, app, tools) -> str:
+        lc_tools = self._build_tools(chat=chat, app=app, tools=tools)
+        if not lc_tools:
+            response = await self.llm_client.chat(base_messages)
+            return response
+
+        graph = create_react_agent(
+            model=self.llm_client.client,
+            tools=lc_tools,
+        )
+
+        result = await graph.ainvoke(
+            {"messages": base_messages},
+            config={
+                # In ReAct flow each tool step involves multiple graph nodes.
+                "recursion_limit": self.max_iterations * 2 + 2
+            },
+        )
+        final = self._extract_final_text(result.get("messages", []))
+        return final or "I could not produce a final answer."
