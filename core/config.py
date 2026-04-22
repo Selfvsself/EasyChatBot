@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     LLM_URL: str = "localhost:11434"
     LLM_MODEL: str = "gpt"
 
+    # Jira
+    JIRA_BASE_URL: str = ""
+    JIRA_EMAIL: str = ""
+    JIRA_API_TOKEN: str = ""
+    JIRA_PAT: str = ""
+    JIRA_PROJECT_KEY: str = ""
+
     class Config:
         env_file = ".env",
         env_file_encoding = "utf-8"
