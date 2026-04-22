@@ -1,6 +1,8 @@
 import json
 import re
 
+from pydantic import BaseModel, ValidationError
+
 from .base_handler import BaseHandler
 
 
@@ -25,42 +27,41 @@ class TranslatorHandler(BaseHandler):
     Tone: Explaining a technical issue to a peer.
     """
 
-    def parse_llm_response(self, raw_response):
-        """
-        Парсит JSON из ответа LLM и возвращает словарь с полями.
-        """
+    class TranslationPayload(BaseModel):
+        translation: str = ""
+        detected_language_code: str = "unknown"
+        context_notes: str | None = None
+
+    def parse_llm_response(self, raw_response: str):
+        fallback = {
+            "translation": (raw_response or "").strip(),
+            "lang": "unknown",
+            "notes": None,
+        }
+
         try:
-            clean_json = re.sub(r'```(?:json)?\n?|```', '', raw_response).strip()
-
+            clean_json = re.sub(r"```(?:json)?\n?|```", "", raw_response or "").strip()
             data = json.loads(clean_json)
-
-            translation = data.get("translation", "")
-            lang_code = data.get("detected_language_code", "unknown")
-            context_notes = data.get("context_notes", None)
-
+            parsed = self.TranslationPayload.model_validate(data)
             return {
-                "translation": translation,
-                "lang": lang_code,
-                "notes": context_notes
+                "translation": parsed.translation,
+                "lang": parsed.detected_language_code,
+                "notes": parsed.context_notes,
             }
-
-        except json.JSONDecodeError as e:
-            print(f"Ошибка парсинга JSON: {e}")
-            return None
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-            return None
+        except (json.JSONDecodeError, ValidationError, TypeError):
+            return fallback
 
     async def handle(self, chat, app, text, tools):
         history = self.message_repo.get_by_chat(chat.id, limit=20)
         facts_prompt = self.build_prompt(self.CONTEXT_EXTRACTOR_SYSTEM, list(reversed(history)), text=text)
         extracted_facts = await self.llm.chat(facts_prompt)
 
-        system_prompt = app.system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", extracted_facts)
-        self.build_prompt(self.CONTEXT_EXTRACTOR_SYSTEM, list(reversed(history)), text=text)
+        system_prompt = (
+            app.system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", extracted_facts)
+            + "\n\nReturn valid JSON only with keys: translation, detected_language_code, context_notes."
+        )
         final_prompt = self.build_prompt(system_prompt, [], text=text)
 
         raw_answer = await self.llm.chat(final_prompt)
-
         result = self.parse_llm_response(raw_answer)
-        return result.get("translation")
+        return result["translation"]

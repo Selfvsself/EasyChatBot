@@ -112,25 +112,22 @@ class WebSearchTool(BaseTool):
                 f"TEXT:\n{src['text']}"
             )
 
-        summarizer_prompt = [
-            {
-                "role": "system",
-                "content": (
-                    "Summarize web sources for grounding an assistant answer. "
-                    "Return concise bullet points with factual claims only. "
-                    "Include source labels like [Source 1] per bullet. "
-                    "If sources conflict, call out the conflict."
-                )
-            },
-            {
-                "role": "user",
-                "content": (
-                        f"User query: {user_query}\n\n"
-                        "Sources:\n\n"
-                        + "\n\n".join(blocks)
-                )
-            }
-        ]
+        summarizer_system = (
+            "Summarize web sources for grounding an assistant answer. "
+            "Return concise bullet points with factual claims only. "
+            "Include source labels like [Source 1] per bullet. "
+            "If sources conflict, call out the conflict."
+        )
+        summarizer_text = (
+            f"User query: {user_query}\n\n"
+            "Sources:\n\n"
+            + "\n\n".join(blocks)
+        )
+        summarizer_prompt = self.build_prompt(
+            system=summarizer_system,
+            history=[],
+            text=summarizer_text,
+        )
         return await self.llm.chat(summarizer_prompt)
 
     def format_results(self, results: list[dict[str, str]]) -> str:
@@ -147,7 +144,6 @@ class WebSearchTool(BaseTool):
         return "\n\n".join(lines)
 
     async def processing(self, chat, app, text):
-        history = self.message_repo.get_by_chat(chat.id, limit=20)
         web_results = await self.search_web(text)
         web_context = self.format_results(web_results)
         loaded_sources = await self._load_sources(web_results)

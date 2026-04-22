@@ -1,4 +1,4 @@
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 
 
@@ -15,9 +15,13 @@ class LLMClient:
         )
 
     @staticmethod
-    def _to_langchain_messages(messages: list[dict]):
+    def _to_langchain_messages(messages: list[dict | BaseMessage]):
         converted = []
         for message in messages:
+            if isinstance(message, BaseMessage):
+                converted.append(message)
+                continue
+
             role = message.get("role", "user")
             content = str(message.get("content", ""))
 
@@ -30,7 +34,7 @@ class LLMClient:
 
         return converted
 
-    async def chat(self, messages: list[dict]) -> str:
+    async def chat(self, messages: list[dict | BaseMessage]) -> str:
         lc_messages = self._to_langchain_messages(messages)
         response = await self.client.ainvoke(lc_messages)
         return response.content if isinstance(response.content, str) else str(response.content)
