@@ -7,6 +7,13 @@ class BaseHandler:
         self.llm = llm_client
         self.message_repo = message_repo
 
+    async def processing_tools(self, tools, chat, app, text):
+        tool_result = []
+        for tool in tools:
+            response = await tool.processing(chat, app, text)
+            tool_result.append(response)
+        return "\n".join(tool_result)
+
     def build_prompt(self, system, history, text):
         messages = [{"role": "system", "content": system}]
 
@@ -24,5 +31,5 @@ class BaseHandler:
         return messages
 
     @abstractmethod
-    async def handle(self, chat, app, text):
+    async def handle(self, chat, app, text, tools):
         pass

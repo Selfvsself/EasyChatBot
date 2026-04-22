@@ -10,3 +10,5 @@ psycopg2==2.9.12
 Jinja2==3.1.6
 PyJWT==2.12.1
 passlib==1.7.4
+ddgs==9.14.1
+beautifulsoup4==4.14.3

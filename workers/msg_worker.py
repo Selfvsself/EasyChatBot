@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from database import SessionLocal
 from repositories.app_repository import AppRepository
+from repositories.app_tool_repository import AppToolRepository
 from repositories.chat_repository import ChatRepository
 from repositories.message_repository import MessageRepository
 from services.llm_client import LLMClient
@@ -51,6 +52,7 @@ async def run_worker():
                 message_repo = MessageRepository(db)
                 chat_repo = ChatRepository(db)
                 app_repo = AppRepository(db)
+                app_tool_repo = AppToolRepository(db)
                 llm_client = LLMClient(
                     base_url=settings.LLM_URL,
                     model=settings.LLM_MODEL
@@ -63,7 +65,8 @@ async def run_worker():
                     message_repo=message_repo,
                     chat_repo=chat_repo,
                     app_repo=app_repo,
-                    llm_client=llm_client
+                    llm_client=llm_client,
+                    app_tool_repo=app_tool_repo
                 )
 
                 response_text = await processor.process(

@@ -51,7 +51,7 @@ class TranslatorHandler(BaseHandler):
             print(f"Произошла ошибка: {e}")
             return None
 
-    async def handle(self, chat, app, text):
+    async def handle(self, chat, app, text, tools):
         history = self.message_repo.get_by_chat(chat.id, limit=20)
         facts_prompt = self.build_prompt(self.CONTEXT_EXTRACTOR_SYSTEM, list(reversed(history)), text=text)
         extracted_facts = await self.llm.chat(facts_prompt)
