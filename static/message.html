@@ -155,6 +155,40 @@
             margin: 10px 0;
         }
 
+        .message .table-wrap {
+            margin: 10px 0;
+            overflow-x: auto;
+            border: 1px solid var(--sl-color-neutral-300);
+            border-radius: 8px;
+        }
+
+        .message table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 560px;
+        }
+
+        .message th,
+        .message td {
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid var(--sl-color-neutral-300);
+            line-height: 1.4;
+        }
+
+        .message th {
+            font-weight: 600;
+            background-color: rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .message tbody tr:last-child td {
+            border-bottom: none;
+        }
+
         .message.user {
             align-self: flex-end;
             background-color: #303030;
@@ -819,9 +853,30 @@
 
     function parseInline(text) {
         return text
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
             .replace(/`([^`]+)`/g, "<code>$1</code>")
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    }
+
+    function isTableRow(line) {
+        const trimmed = line.trim();
+        return /^\|.*\|$/.test(trimmed);
+    }
+
+    function splitTableRow(line) {
+        return line
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map((cell) => cell.trim());
+    }
+
+    function isTableDivider(line, expectedCols) {
+        const cells = splitTableRow(line);
+        if (cells.length !== expectedCols) return false;
+        return cells.every((cell) => /^:?-{3,}:?$/.test(cell));
     }
 
     function renderMarkdown(rawText) {
@@ -837,7 +892,8 @@
         const html = [];
         let inList = false;
 
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
             const trimmed = line.trim();
 
             if (!trimmed) {
@@ -864,6 +920,51 @@
                 }
                 html.push("<hr>");
                 continue;
+            }
+
+            if (isTableRow(trimmed)) {
+                let dividerIndex = i + 1;
+                while (dividerIndex < lines.length && !lines[dividerIndex].trim()) {
+                    dividerIndex++;
+                }
+
+                if (dividerIndex < lines.length && isTableRow(lines[dividerIndex].trim())) {
+                    const headers = splitTableRow(trimmed);
+                    const dividerLine = lines[dividerIndex].trim();
+
+                    if (isTableDivider(dividerLine, headers.length)) {
+                        if (inList) {
+                            html.push("</ul>");
+                            inList = false;
+                        }
+
+                        let rowsHtml = "";
+                        let rowIndex = dividerIndex + 1;
+
+                        while (rowIndex < lines.length) {
+                            const rowLine = lines[rowIndex].trim();
+                            if (!rowLine) {
+                                rowIndex++;
+                                continue;
+                            }
+                            if (!isTableRow(rowLine)) {
+                                break;
+                            }
+
+                            const rawCells = splitTableRow(rowLine);
+                            const cells = Array.from({ length: headers.length }, (_, idx) => rawCells[idx] || "");
+                            rowsHtml += `<tr>${cells.map((cell) => `<td>${parseInline(cell)}</td>`).join("")}</tr>`;
+                            rowIndex++;
+                        }
+
+                        const headerHtml = headers.map((h) => `<th>${parseInline(h)}</th>`).join("");
+                        html.push(
+                            `<div class="table-wrap"><table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`
+                        );
+                        i = rowIndex - 1;
+                        continue;
+                    }
+                }
             }
 
             const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
