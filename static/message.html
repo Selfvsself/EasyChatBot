@@ -452,6 +452,10 @@
         jira_running: { text: "Выполняю JQL", icon: "search" },
         jira_opening: { text: "Открываю тикет", icon: "folder2-open" },
         jira_validating: { text: "Проверяю ответ", icon: "shield-check" },
+        confluence_planning: { text: "Формирую CQL", icon: "cpu" },
+        confluence_running: { text: "Выполняю CQL", icon: "search" },
+        confluence_opening: { text: "Открываю страницу", icon: "file-earmark-text" },
+        confluence_validating: { text: "Проверяю ответ", icon: "shield-check" },
         reading: { text: "Читаю сайт", icon: "book" },
         tooling: { text: "Выполняю инструмент", icon: "tools" },
         typing: { text: "Бот печатает", icon: "keyboard" }
@@ -653,6 +657,44 @@
             setBotStatus("jira_validating");
             botStatusQuery.textContent = "";
             botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "confluence_query_planning") {
+            setBotStatus("confluence_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_query_running") {
+            setBotStatus("confluence_running");
+            const cql = (msg.metadata?.cql || "").trim();
+            if (cql) {
+                botStatusQuery.textContent = `CQL: ${cql}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_page_opening") {
+            setBotStatus("confluence_opening");
+            const title = (msg.metadata?.title || "").trim();
+            if (title) {
+                botStatusQuery.textContent = `Страница: ${title}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_validating") {
+            setBotStatus("confluence_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
         }
     }
 

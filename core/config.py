@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     JIRA_PAT: str = ""
     JIRA_PROJECT_KEY: str = ""
 
+    # Confluence
+    CONFLUENCE_BASE_URL: str = ""
+    CONFLUENCE_EMAIL: str = ""
+    CONFLUENCE_API_TOKEN: str = ""
+    CONFLUENCE_PAT: str = ""
+    CONFLUENCE_SPACE_KEY: str = ""
+
     class Config:
         env_file = ".env",
         env_file_encoding = "utf-8"

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from handlers.default_handler import DefaultHandler
 from handlers.translator_handler import TranslatorHandler
 
+from handlers.tools.confluence_search_tool import ConfluenceSearchTool
 from handlers.tools.jira_search_tool import JiraSearchTool
 from handlers.tools.web_search_tool import WebSearchTool
 
@@ -23,7 +24,8 @@ class MessageProcessor:
         }
         self.tools = {
             "web-search": WebSearchTool(llm_client, message_repo),
-            "jira-search": JiraSearchTool(llm_client, message_repo)
+            "jira-search": JiraSearchTool(llm_client, message_repo),
+            "confluence-search": ConfluenceSearchTool(llm_client, message_repo),
         }
 
     async def process(self, chat_id: str, user_id: str, text, stage_callback=None) -> str:
