@@ -138,7 +138,7 @@ class JiraSearchTool(BaseTool):
             f"{self._format_results(results)}"
         )
 
-    async def run_for_agent(self, query: str, chat=None, app=None) -> str:
+    async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
         results, error = await self._search(query)
         if error:
             return f"Jira search tool error: {error}"

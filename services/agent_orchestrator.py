@@ -34,7 +34,12 @@ class AgentOrchestrator:
                             "query": query,
                         },
                     )
-                    return await _tool.run_for_agent(query, chat=chat, app=app)
+                    return await _tool.run_for_agent(
+                        query,
+                        chat=chat,
+                        app=app,
+                        stage_callback=stage_callback,
+                    )
 
                 description = (
                     f"Use this tool when you need {tool_name} data. "

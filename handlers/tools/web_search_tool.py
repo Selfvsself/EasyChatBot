@@ -106,6 +106,46 @@ class WebSearchTool(BaseTool):
             )
         return loaded
 
+    async def _load_sources_for_agent(self, results: list[dict[str, str]], stage_callback=None) -> list[dict[str, str]]:
+        if not results:
+            return []
+
+        sources = results[:self.MAX_PAGES]
+        loaded: list[dict[str, str]] = []
+
+        async with httpx.AsyncClient(timeout=self.HTTP_TIMEOUT) as client:
+            for item in sources:
+                if stage_callback:
+                    await stage_callback(
+                        stage="site_reading",
+                        metadata={
+                            "url": item["url"],
+                            "title": item["title"],
+                        },
+                    )
+
+                page_text = await self._fetch_page_text(client, item["url"])
+                if not page_text:
+                    continue
+
+                loaded.append(
+                    {
+                        "title": item["title"],
+                        "url": item["url"],
+                        "text": page_text
+                    }
+                )
+
+        if stage_callback and loaded:
+            await stage_callback(
+                stage="sources_used",
+                metadata={
+                    "sources": [{"title": src["title"], "url": src["url"]} for src in loaded]
+                },
+            )
+
+        return loaded
+
     async def _summarize_sources(self, user_query: str, sources: list[dict[str, str]]) -> str:
         if not sources:
             return "No source text could be extracted from search results."
@@ -165,12 +205,12 @@ class WebSearchTool(BaseTool):
             f"{web_context}"
         )
 
-    async def run_for_agent(self, query: str, chat=None, app=None) -> str:
+    async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
         web_results = await self.search_web(query)
         if not web_results:
             return "No web search results."
 
-        loaded_sources = await self._load_sources(web_results)
+        loaded_sources = await self._load_sources_for_agent(web_results, stage_callback=stage_callback)
         lines = [self.format_results(web_results)]
 
         if loaded_sources:
