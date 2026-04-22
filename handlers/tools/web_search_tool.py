@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import asyncio
+import json
 import re
 from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
 from ddgs import DDGS
+from pydantic import BaseModel, Field, ValidationError
 
 from .base_tool import BaseTool
 
@@ -20,6 +24,19 @@ class WebSearchTool(BaseTool):
     MAX_PAGES = 3
     MAX_PAGE_CHARS = 6000
     HTTP_TIMEOUT = 10.0
+    MAX_REFINE_ATTEMPTS = 3
+
+    class QueryPlan(BaseModel):
+        search_query: str
+        rationale: str | None = None
+
+    class AnalysisResult(BaseModel):
+        answer: str
+        is_complete: bool = True
+        is_correct: bool = True
+        needs_retry: bool = False
+        retry_query: str | None = None
+        evidence: list[str] = Field(default_factory=list)
 
     async def search_web(self, query: str) -> list[dict[str, str]]:
         try:
@@ -176,6 +193,118 @@ class WebSearchTool(BaseTool):
         )
         return await self.llm.chat(summarizer_prompt)
 
+    @staticmethod
+    def _strip_fences(text: str) -> str:
+        return re.sub(r"```(?:json)?\n?|```", "", text or "").strip()
+
+    async def _plan_search_query_with_llm(self, user_query: str) -> str:
+        plan_system = (
+            "You generate the best web search query. "
+            "Return JSON only with keys: search_query, rationale. "
+            "Prefer concise and high-signal queries."
+        )
+        plan_prompt = self.build_prompt(
+            system=plan_system,
+            history=[],
+            text=f"User query:\n{user_query}\n\nReturn JSON only.",
+        )
+        raw = await self.llm.chat(plan_prompt)
+        try:
+            payload = json.loads(self._strip_fences(raw))
+            plan = self.QueryPlan.model_validate(payload)
+            return plan.search_query.strip() or user_query
+        except (json.JSONDecodeError, ValidationError, TypeError):
+            return user_query
+
+    async def _analyze_sources_with_llm(
+        self,
+        user_query: str,
+        search_query: str,
+        web_results: list[dict[str, str]],
+        sources: list[dict[str, str]],
+    ) -> AnalysisResult:
+        snippet_block = []
+        for idx, item in enumerate(web_results, start=1):
+            snippet_block.append(
+                f"[Result {idx}] {item['title']}\nURL: {item['url']}\nSnippet: {item['snippet']}"
+            )
+
+        source_block = []
+        for idx, item in enumerate(sources, start=1):
+            source_block.append(
+                f"[Source {idx}] {item['title']}\nURL: {item['url']}\nTEXT:\n{item['text']}"
+            )
+
+        analysis_system = (
+            "You are a source-grounded analyst. "
+            "Return JSON only with keys: answer, is_complete, is_correct, needs_retry, retry_query, evidence. "
+            "evidence is a list of URLs or short facts. "
+            "Set needs_retry=true only if sources are insufficient or contradictory."
+        )
+        analysis_prompt = self.build_prompt(
+            system=analysis_system,
+            history=[],
+            text=(
+                f"User query:\n{user_query}\n\n"
+                f"Search query used:\n{search_query}\n\n"
+                "Search results:\n"
+                + ("\n\n".join(snippet_block) if snippet_block else "none")
+                + "\n\nExtracted source texts:\n"
+                + ("\n\n".join(source_block) if source_block else "none")
+            ),
+        )
+
+        raw = await self.llm.chat(analysis_prompt)
+        try:
+            payload = json.loads(self._strip_fences(raw))
+            return self.AnalysisResult.model_validate(payload)
+        except (json.JSONDecodeError, ValidationError, TypeError):
+            return self.AnalysisResult(
+                answer=raw.strip() or "Could not produce a grounded answer.",
+                is_complete=True,
+                is_correct=True,
+                needs_retry=False,
+                retry_query=None,
+                evidence=[],
+            )
+
+    async def _best_effort_answer_with_llm(
+        self,
+        user_query: str,
+        search_query: str,
+        web_results: list[dict[str, str]],
+        sources: list[dict[str, str]],
+    ) -> str:
+        snippet_block = []
+        for idx, item in enumerate(web_results, start=1):
+            snippet_block.append(
+                f"[Result {idx}] {item['title']}\nURL: {item['url']}\nSnippet: {item['snippet']}"
+            )
+
+        source_block = []
+        for idx, item in enumerate(sources, start=1):
+            source_block.append(
+                f"[Source {idx}] {item['title']}\nURL: {item['url']}\nTEXT:\n{item['text']}"
+            )
+
+        prompt = self.build_prompt(
+            system=(
+                "Provide the best possible factual answer from available web data. "
+                "If sources are incomplete, clearly mention uncertainty. Return plain text only."
+            ),
+            history=[],
+            text=(
+                f"User query:\n{user_query}\n\n"
+                f"Search query used:\n{search_query}\n\n"
+                "Search results:\n"
+                + ("\n\n".join(snippet_block) if snippet_block else "none")
+                + "\n\nExtracted source texts:\n"
+                + ("\n\n".join(source_block) if source_block else "none")
+            ),
+        )
+        answer = await self.llm.chat(prompt)
+        return (answer or "").strip() or "Could not produce a web answer."
+
     def format_results(self, results: list[dict[str, str]]) -> str:
         if not results:
             return "No web search results."
@@ -206,19 +335,94 @@ class WebSearchTool(BaseTool):
         )
 
     async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
-        web_results = await self.search_web(query)
-        if not web_results:
-            return "No web search results."
+        working_query = query
+        last_analysis: WebSearchTool.AnalysisResult | None = None
+        last_search_query = query
+        last_sources: list[dict[str, str]] = []
 
-        loaded_sources = await self._load_sources_for_agent(web_results, stage_callback=stage_callback)
-        lines = [self.format_results(web_results)]
+        for attempt in range(1, self.MAX_REFINE_ATTEMPTS + 1):
+            is_last_attempt = attempt == self.MAX_REFINE_ATTEMPTS
 
-        if loaded_sources:
-            compact_sources = []
-            for idx, src in enumerate(loaded_sources, start=1):
-                compact_sources.append(
-                    f"[Source {idx}] {src['title']}\nURL: {src['url']}\nTEXT: {src['text']}"
+            if stage_callback:
+                await stage_callback(
+                    stage="web_query_planning",
+                    metadata={"attempt": attempt, "query": working_query},
                 )
-            lines.append("Extracted source text:\n" + "\n\n".join(compact_sources))
 
-        return "\n\n".join(lines)
+            search_query = await self._plan_search_query_with_llm(working_query)
+            last_search_query = search_query
+
+            if stage_callback:
+                await stage_callback(
+                    stage="web_search_running",
+                    metadata={"attempt": attempt, "query": search_query},
+                )
+
+            web_results = await self.search_web(search_query)
+            if not web_results:
+                if attempt < self.MAX_REFINE_ATTEMPTS:
+                    working_query = f"{working_query} latest updates"
+                    continue
+                return "No web search results."
+
+            loaded_sources = await self._load_sources_for_agent(web_results, stage_callback=stage_callback)
+            last_sources = loaded_sources
+
+            if is_last_attempt:
+                best_effort = await self._best_effort_answer_with_llm(
+                    user_query=query,
+                    search_query=search_query,
+                    web_results=web_results,
+                    sources=loaded_sources,
+                )
+                source_line = ", ".join(src["url"] for src in loaded_sources) if loaded_sources else "none"
+                return (
+                    f"Search query used: {search_query}\n"
+                    f"Sources read: {source_line}\n"
+                    f"Evidence: n/a\n\n"
+                    f"Answer:\n{best_effort}"
+                )
+
+            if stage_callback:
+                await stage_callback(
+                    stage="web_validating",
+                    metadata={"attempt": attempt},
+                )
+
+            analysis = await self._analyze_sources_with_llm(
+                user_query=query,
+                search_query=search_query,
+                web_results=web_results,
+                sources=loaded_sources,
+            )
+            last_analysis = analysis
+
+            should_retry = (
+                attempt < self.MAX_REFINE_ATTEMPTS
+                and (analysis.needs_retry or not analysis.is_complete or not analysis.is_correct)
+                and bool((analysis.retry_query or "").strip())
+            )
+            if should_retry:
+                working_query = analysis.retry_query.strip()
+                continue
+
+            evidence_line = ", ".join(analysis.evidence) if analysis.evidence else "n/a"
+            source_line = ", ".join(src["url"] for src in loaded_sources) if loaded_sources else "none"
+            return (
+                f"Search query used: {search_query}\n"
+                f"Sources read: {source_line}\n"
+                f"Evidence: {evidence_line}\n\n"
+                f"Answer:\n{analysis.answer}"
+            )
+
+        if last_analysis:
+            evidence_line = ", ".join(last_analysis.evidence) if last_analysis.evidence else "n/a"
+            source_line = ", ".join(src["url"] for src in last_sources) if last_sources else "none"
+            return (
+                f"Search query used: {last_search_query}\n"
+                f"Sources read: {source_line}\n"
+                f"Evidence: {evidence_line}\n\n"
+                f"Answer:\n{last_analysis.answer}"
+            )
+
+        return "Web search completed but no answer could be produced."

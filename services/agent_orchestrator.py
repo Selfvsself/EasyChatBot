@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable
 
 from langchain_core.messages import AIMessage
@@ -62,6 +63,11 @@ class AgentOrchestrator:
                 return message.content
         return ""
 
+    @staticmethod
+    def _is_tool_call_parse_error(exc: Exception) -> bool:
+        text = str(exc).lower()
+        return "error parsing tool call" in text or "invalid character" in text
+
     async def run(self, base_messages, chat, app, tools, stage_callback=None) -> str:
         await self._emit_stage(stage_callback, stage="thinking")
 
@@ -76,13 +82,23 @@ class AgentOrchestrator:
             tools=lc_tools,
         )
 
-        result = await graph.ainvoke(
-            {"messages": base_messages},
-            config={
-                # In ReAct flow each tool step involves multiple graph nodes.
-                "recursion_limit": self.max_iterations * 2 + 2
-            },
-        )
-        await self._emit_stage(stage_callback, stage="typing")
-        final = self._extract_final_text(result.get("messages", []))
-        return final or "I could not produce a final answer."
+        try:
+            result = await graph.ainvoke(
+                {"messages": base_messages},
+                config={
+                    # In ReAct flow each tool step involves multiple graph nodes.
+                    "recursion_limit": self.max_iterations * 2 + 2
+                },
+            )
+            await self._emit_stage(stage_callback, stage="typing")
+            final = self._extract_final_text(result.get("messages", []))
+            return final or "I could not produce a final answer."
+        except Exception as exc:
+            if self._is_tool_call_parse_error(exc):
+                logging.warning(
+                    "Tool-call parse error in agent runtime. Falling back to plain model response: %s",
+                    exc,
+                )
+                await self._emit_stage(stage_callback, stage="typing")
+                return await self.llm_client.chat(base_messages)
+            raise

@@ -444,7 +444,14 @@
     const STATUS_MAP = {
         thinking: { text: "Бот думает", icon: "cpu" },
         searching: { text: "Поиск в интернете", icon: "globe2" },
+        web_planning: { text: "Формирую web-запрос", icon: "cpu" },
+        web_running: { text: "Выполняю web-поиск", icon: "search" },
+        web_validating: { text: "Проверяю ответ", icon: "shield-check" },
         jira: { text: "Поиск в Jira", icon: "kanban" },
+        jira_planning: { text: "Формирую JQL", icon: "cpu" },
+        jira_running: { text: "Выполняю JQL", icon: "search" },
+        jira_opening: { text: "Открываю тикет", icon: "folder2-open" },
+        jira_validating: { text: "Проверяю ответ", icon: "shield-check" },
         reading: { text: "Читаю сайт", icon: "book" },
         tooling: { text: "Выполняю инструмент", icon: "tools" },
         typing: { text: "Бот печатает", icon: "keyboard" }
@@ -582,6 +589,70 @@
             if (Array.isArray(sources) && sources.length) {
                 pendingSources = sources;
             }
+            return;
+        }
+
+        if (stage === "web_query_planning") {
+            setBotStatus("web_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "web_search_running") {
+            setBotStatus("web_running");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `Поиск: ${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "web_validating") {
+            setBotStatus("web_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "jira_query_planning") {
+            setBotStatus("jira_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_query_running") {
+            setBotStatus("jira_running");
+            const jql = (msg.metadata?.jql || "").trim();
+            if (jql) {
+                botStatusQuery.textContent = `JQL: ${jql}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_ticket_opening") {
+            setBotStatus("jira_opening");
+            const key = (msg.metadata?.key || "").trim();
+            if (key) {
+                botStatusQuery.textContent = `Тикет: ${key}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_validating") {
+            setBotStatus("jira_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
         }
     }
 
