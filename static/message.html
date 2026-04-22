@@ -404,7 +404,6 @@
     <div class="input-area">
         <div id="bot-status" class="bot-status" aria-live="polite">
             <div class="bot-status-main">
-                <sl-icon id="bot-status-icon" name="cpu"></sl-icon>
                 <span id="bot-status-text">Бот думает</span>
                 <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
             </div>
@@ -472,7 +471,6 @@
     const sendBtn = document.getElementById("send-btn");
     const botStatus = document.getElementById("bot-status");
     const botStatusText = document.getElementById("bot-status-text");
-    const botStatusIcon = document.getElementById("bot-status-icon");
     const botStatusQuery = document.getElementById("bot-status-query");
 
     const STATUS_MAP = {
@@ -494,7 +492,7 @@
         agent_replanning: { text: "Уточняю стратегию", icon: "arrow-repeat" },
         reading: { text: "Читаю сайт", icon: "book" },
         tooling: { text: "Выполняю инструмент", icon: "tools" },
-        typing: { text: "Бот печатает", icon: "keyboard" }
+        typing: { text: "Печатаю", icon: "keyboard" }
     };
 
     let assistantPending = false;
@@ -505,7 +503,6 @@
         if (!config) return;
 
         botStatusText.textContent = config.text;
-        botStatusIcon.name = config.icon;
         botStatus.classList.add("active");
     }
 
@@ -590,7 +587,7 @@
                 setBotStatus("searching");
                 const q = (msg.metadata?.query || "").trim();
                 if (q) {
-                    botStatusQuery.textContent = `Запрос: ${q}`;
+                    botStatusQuery.textContent = `${q}`;
                     botStatusQuery.classList.add("active");
                 }
                 return;
@@ -599,7 +596,7 @@
                 setBotStatus("jira");
                 const q = (msg.metadata?.query || "").trim();
                 if (q) {
-                    botStatusQuery.textContent = `JQL/запрос: ${q}`;
+                    botStatusQuery.textContent = `${q}`;
                     botStatusQuery.classList.add("active");
                 }
                 return;
@@ -607,7 +604,7 @@
             setBotStatus("tooling");
             const q = (msg.metadata?.query || "").trim();
             if (q) {
-                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.textContent = `${q}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -618,7 +615,7 @@
             const siteUrl = (msg.metadata?.url || "").trim();
             const host = getHostname(siteUrl);
             if (host) {
-                botStatusQuery.textContent = `Сейчас: ${host}`;
+                botStatusQuery.textContent = `${host}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -636,7 +633,7 @@
             setBotStatus("web_planning");
             const q = (msg.metadata?.query || "").trim();
             if (q) {
-                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.textContent = `${q}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -646,7 +643,7 @@
             setBotStatus("web_running");
             const q = (msg.metadata?.query || "").trim();
             if (q) {
-                botStatusQuery.textContent = `Поиск: ${q}`;
+                botStatusQuery.textContent = `${q}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -663,7 +660,7 @@
             setBotStatus("jira_planning");
             const q = (msg.metadata?.query || "").trim();
             if (q) {
-                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.textContent = `${q}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -673,7 +670,7 @@
             setBotStatus("jira_running");
             const jql = (msg.metadata?.jql || "").trim();
             if (jql) {
-                botStatusQuery.textContent = `JQL: ${jql}`;
+                botStatusQuery.textContent = `${jql}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -683,7 +680,7 @@
             setBotStatus("jira_opening");
             const key = (msg.metadata?.key || "").trim();
             if (key) {
-                botStatusQuery.textContent = `Тикет: ${key}`;
+                botStatusQuery.textContent = `${key}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -700,7 +697,7 @@
             setBotStatus("confluence_planning");
             const q = (msg.metadata?.query || "").trim();
             if (q) {
-                botStatusQuery.textContent = `Запрос: ${q}`;
+                botStatusQuery.textContent = `${q}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -710,7 +707,7 @@
             setBotStatus("confluence_running");
             const cql = (msg.metadata?.cql || "").trim();
             if (cql) {
-                botStatusQuery.textContent = `CQL: ${cql}`;
+                botStatusQuery.textContent = `${cql}`;
                 botStatusQuery.classList.add("active");
             }
             return;
@@ -720,7 +717,7 @@
             setBotStatus("confluence_opening");
             const title = (msg.metadata?.title || "").trim();
             if (title) {
-                botStatusQuery.textContent = `Страница: ${title}`;
+                botStatusQuery.textContent = `${title}`;
                 botStatusQuery.classList.add("active");
             }
             return;

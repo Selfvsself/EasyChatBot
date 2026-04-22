@@ -34,9 +34,13 @@ class TranslatorHandler(BaseHandler):
             return raw_text
 
     async def handle(self, chat, app, text, tools, stage_callback=None):
-        history = self.message_repo.get_by_chat(chat.id, limit=20)
+        history = self.message_repo.get_by_chat(chat.id, limit=20, include_archived=False)
+        memory_part = ""
+        if chat.memory_summary:
+            memory_part = f"\n\nChat memory (summary of archived messages):\n{chat.memory_summary.strip()}"
+
         system_prompt = (
-            f"{app.system_prompt}\n\n"
+            f"{app.system_prompt}{memory_part}\n\n"
             "You are in translator mode. "
             "Preserve meaning, tone, and named entities accurately."
         )

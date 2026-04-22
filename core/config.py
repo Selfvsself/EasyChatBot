@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     LLM_URL: str = "localhost:11434"
     LLM_MODEL: str = "gpt"
 
+    # Chat memory
+    CHAT_MAX_ACTIVE_MESSAGES: int = 10
+    CHAT_ARCHIVE_BATCH_SIZE: int = 5
+    CHAT_MEMORY_MAX_CHARS: int = 5000
+
     # Jira
     JIRA_BASE_URL: str = ""
     JIRA_EMAIL: str = ""

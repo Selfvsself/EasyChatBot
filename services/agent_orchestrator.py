@@ -85,6 +85,17 @@ class AgentOrchestrator:
         text = str(exc).lower()
         return "error parsing tool call" in text or "invalid character" in text
 
+    async def _chat_without_tools(self, base_messages) -> str:
+        guided_messages = list(base_messages) + [
+            HumanMessage(
+                content=(
+                    "Tools are unavailable in this chat. "
+                    "Do not output tool calls"
+                )
+            )
+        ]
+        return await self.llm_client.chat(guided_messages)
+
     async def _invoke_agent_once(self, graph, messages, stage_callback=None) -> tuple[str, list]:
         result = await graph.ainvoke(
             {"messages": messages},
@@ -133,7 +144,7 @@ class AgentOrchestrator:
         lc_tools = self._build_tools(chat=chat, app=app, tools=tools, stage_callback=stage_callback)
         if not lc_tools:
             await self._emit_stage(stage_callback, stage="typing")
-            response = await self.llm_client.chat(base_messages)
+            response = await self._chat_without_tools(base_messages)
             return response
 
         graph = create_react_agent(
@@ -188,5 +199,5 @@ class AgentOrchestrator:
                     exc,
                 )
                 await self._emit_stage(stage_callback, stage="typing")
-                return await self.llm_client.chat(base_messages)
+                return await self._chat_without_tools(base_messages)
             raise

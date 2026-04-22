@@ -28,3 +28,11 @@ class ChatRepository(BaseRepository):
             .limit(limit)
             .all()
         )
+
+    def update_memory_summary(self, chat_id, memory_summary: str):
+        chat = self.db.get(Chat, chat_id)
+        if chat:
+            chat.memory_summary = memory_summary
+            self.db.commit()
+            self.db.refresh(chat)
+        return chat

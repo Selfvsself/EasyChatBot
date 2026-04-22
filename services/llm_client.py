@@ -10,7 +10,6 @@ class LLMClient:
         self.client = ChatOllama(
             model=self.model,
             base_url=self.base_url,
-            temperature=0.2,
             timeout=60.0,
             max_retries=2,
         )
