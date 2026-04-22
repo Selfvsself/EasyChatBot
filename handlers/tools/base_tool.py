@@ -14,12 +14,12 @@ class BaseTool:
     def _to_langchain_history(history):
         converted = []
         for message in history:
-            role = getattr(message, "role", "user")
+            role = getattr(message, "type", "user")
             content = str(getattr(message, "text", ""))
 
             if role == "system":
-                converted.append(SystemMessage(content=content))
-            elif role == "assistant":
+                continue
+            elif role == "ai":
                 converted.append(AIMessage(content=content))
             else:
                 converted.append(HumanMessage(content=content))
@@ -62,4 +62,8 @@ class BaseTool:
 
     @abstractmethod
     async def processing(self, chat, app, text):
+        pass
+
+    @abstractmethod
+    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None):
         pass

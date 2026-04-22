@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import random
 from typing import Any
 
 import httpx
@@ -27,8 +28,8 @@ class WebSearchTool(BaseTool):
     MAX_REFINE_ATTEMPTS = 3
 
     class QueryPlan(BaseModel):
-        search_query: str
-        rationale: str | None = None
+        reasoning: str
+        search_queries: list[str] | None = None
 
     class AnalysisResult(BaseModel):
         answer: str
@@ -44,6 +45,22 @@ class WebSearchTool(BaseTool):
             return self._extract_results(raw_results)
         except Exception:
             return []
+
+    @staticmethod
+    def _build_messages_block(messages):
+        lines = []
+        for message in messages:
+            role = getattr(message, "type", "user")
+            if role == "system":
+                continue
+            text = str(getattr(message, "text", "")).strip().replace("\n", " ")
+            if role == "ai":
+                role = "assistant"
+            else:
+                role = "user"
+            if text:
+                lines.append(f"{role}: {text}")
+        return "\n".join(lines)
 
     def _search_sync(self, query: str) -> list[dict[str, Any]]:
         with DDGS(timeout=10) as ddgs:
@@ -197,24 +214,45 @@ class WebSearchTool(BaseTool):
     def _strip_fences(text: str) -> str:
         return re.sub(r"```(?:json)?\n?|```", "", text or "").strip()
 
-    async def _plan_search_query_with_llm(self, user_query: str) -> str:
+    async def _plan_search_query_with_llm(self, user_query: str, history: list = None, context: str = None) -> list[str]:
         plan_system = (
-            "You generate the best web search query. "
-            "Return JSON only with keys: search_query, rationale. "
-            "Prefer concise and high-signal queries."
+            "Role: "
+            "You are an expert Search Query Engineer. "
+            "Your task is to analyze the user's current request and, using the provided "
+            "context and history, generate a set of precise search queries to find the most relevant information. "
+            "Input Data: "
+            "1. User Request: The current prompt from the user. "
+            "2. User Context (Facts): Key details, entities, and long-term facts about the user's projects or preferences. "
+            "3. Message History: Recent messages to track the specific topic evolution. "
+            "Operational Rules: "
+            "- De-contextualization: Convert ambiguous pronouns (it, they, that project, his company) into specific names or terms found in the Context or History. "
+            "- Multi-perspective Search: If the request is complex, break it down into 2-3 different queries (e.g., one for technical specs, one for market trends). "
+            "- Efficiency: Do not search for things already clearly defined in the \"User Context\" or \"History\". "
+            "- No Explanations: Your output must be only the list of queries. "
+            "Output Format: "
+            "Return a valid JSON object. "
+            "JSON Schema: "
+            "{ "
+            "\"reasoning\": \"Briefly explain why these specific terms were chosen based on the history/context\", "
+            "\"search_queries\": [\"query 1\", \"query 2\", \"query 3\"] "
+            "}"
         )
+        formatted_history = self._build_messages_block(history)
         plan_prompt = self.build_prompt(
             system=plan_system,
             history=[],
-            text=f"User query:\n{user_query}\n\nReturn JSON only.",
+            text=(f"User query:\n{user_query}\n\n"
+                  f"User Context (Facts):\n{context}\n\n"
+                  f"Message History:\n{formatted_history}\n\n"
+                  "Return JSON only."),
         )
-        raw = await self.llm.chat(plan_prompt)
+        raw = await self.llm.chat(plan_prompt, response_format="json")
         try:
             payload = json.loads(self._strip_fences(raw))
             plan = self.QueryPlan.model_validate(payload)
-            return plan.search_query.strip() or user_query
+            return plan.search_queries or [user_query]
         except (json.JSONDecodeError, ValidationError, TypeError):
-            return user_query
+            return [user_query]
 
     async def _analyze_sources_with_llm(
         self,
@@ -334,14 +372,15 @@ class WebSearchTool(BaseTool):
             f"{web_context}"
         )
 
-    async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
+    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None) -> str:
         if stage_callback:
             await stage_callback(
                 stage="web_query_planning",
                 metadata={"attempt": 1, "query": query},
             )
 
-        search_query = await self._plan_search_query_with_llm(query)
+        search_queries = await self._plan_search_query_with_llm(query, history, context)
+        search_query = random.choice(search_queries)
 
         if stage_callback:
             await stage_callback(

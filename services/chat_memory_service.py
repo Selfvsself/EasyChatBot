@@ -35,18 +35,26 @@ class ChatMemoryService:
             {
                 "role": "system",
                 "content": (
-                    "You maintain a compact memory of a chat. "
-                    "Keep only important facts, decisions, constraints, preferences and pending tasks. "
-                    "Do not include greetings, small talk, or duplicated details. "
-                    "Return plain text in one language used by user."
+                    "You are a concise conversation analyzer. Your task is to maintain a running summary of the interaction between a User and an AI. "
+                    "INPUT DATA: "
+                    "1. \"New Dialogue Segment\": Recent messages to be processed. "
+                    "2. \"Previous Summary\": A condensed recap of all prior interactions. "
+                    "YOUR GOAL: "
+                    "Create a new, updated summary that integrates the \"New Dialogue Segment\" into the \"Previous Summary\". "
+                    "RULES FOR SUMMARIZATION: "
+                    "- BE EXTREMELY CONCISE. Use bullet points or short telegram-style sentences. "
+                    "- KEY ELEMENTS TO KEEP: User's intent, specific technical requirements, names/entities mentioned, resolved questions, and pending tasks. "
+                    "- DELETE: Politeness, greetings, filler words, and redundant explanations. "
+                    "- EVOLVING CONTEXT: If the user changes their mind or updates a previous instruction, reflect that change and remove the outdated information. "
+                    "- NO INTRODUCTIONS: Start directly with the summary. Do not say \"Here is the summary...\""
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Current memory:\n"
+                    "Previous Summary:\n"
                     f"{current_memory or '(empty)'}\n\n"
-                    "New archived dialogue chunk:\n"
+                    "New Dialogue Segment:\n"
                     f"{messages_block}\n\n"
                     "Update memory:"
                 ),
@@ -55,21 +63,21 @@ class ChatMemoryService:
         summary = await self.llm.chat(prompt)
         return self._trim_memory((summary or "").strip())
 
-    async def compress_if_needed(self, chat_id):
+    async def compress_if_needed(self, chat_id) -> bool:
         active_count = self.message_repo.count_active_by_chat(chat_id)
         if active_count <= settings.CHAT_MAX_ACTIVE_MESSAGES:
-            return
+            return False
 
         messages_to_archive = self.message_repo.get_oldest_active_by_chat(
             chat_id=chat_id,
             limit=settings.CHAT_ARCHIVE_BATCH_SIZE,
         )
         if not messages_to_archive:
-            return
+            return False
 
         chat = self.chat_repo.get_by_id(chat_id)
         if not chat:
-            return
+            return False
 
         current_memory = (chat.memory_summary or "").strip()
 
@@ -84,3 +92,4 @@ class ChatMemoryService:
 
         self.chat_repo.update_memory_summary(chat_id, updated_memory)
         self.message_repo.mark_as_archived([message.id for message in messages_to_archive])
+        return True

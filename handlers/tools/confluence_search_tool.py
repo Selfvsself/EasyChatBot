@@ -389,7 +389,7 @@ class ConfluenceSearchTool(BaseTool):
             + "\n\n".join(lines)
         )
 
-    async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
+    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None) -> str:
         if stage_callback:
             await stage_callback(
                 stage="confluence_query_planning",

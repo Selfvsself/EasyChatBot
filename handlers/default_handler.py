@@ -10,21 +10,17 @@ class DefaultHandler(BaseHandler):
         self.orchestrator = AgentOrchestrator(llm_client=llm_client, max_iterations=self.MAX_ITERATIONS)
 
     async def handle(self, chat, app, text, tools, stage_callback=None):
-        history = self.message_repo.get_by_chat(chat.id, limit=20, include_archived=False)
-        memory_part = ""
+        extracted_facts = "None"
         if chat.memory_summary:
-            memory_part = f"\n\nChat memory (summary of archived messages):\n{chat.memory_summary.strip()}"
+            extracted_facts = f"\n\nChat memory (summary of archived messages):\n{chat.memory_summary.strip()}"
+        history = self.message_repo.get_by_chat(chat.id, limit=50, include_archived=False)
+        system_prompt = app.system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", extracted_facts)
 
-        system_prompt = (
-            f"{app.system_prompt}{memory_part}\n\n"
-            "You can use available tools when needed. "
-            "Use tools only for factual retrieval and provide a direct final answer."
-        )
         prompt = self.build_prompt(system=system_prompt, history=list(reversed(history)), text=text)
         return await self.orchestrator.run(
-            base_messages=prompt,
-            chat=chat,
-            app=app,
+            user_query=text,
+            history=prompt,
+            context=extracted_facts,
             tools=tools,
             stage_callback=stage_callback,
         )

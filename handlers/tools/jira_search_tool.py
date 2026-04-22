@@ -366,7 +366,7 @@ class JiraSearchTool(BaseTool):
             f"{self._format_results(results)}"
         )
 
-    async def run_for_agent(self, query: str, chat=None, app=None, stage_callback=None) -> str:
+    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None) -> str:
         if stage_callback:
             await stage_callback(
                 stage="jira_query_planning",

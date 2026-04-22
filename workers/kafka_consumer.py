@@ -46,15 +46,17 @@ async def consume_and_dispatch(kafka, manager, db_factory):
                     text=text
                 )
 
+                await manager.send_to_user(chat_id, data)
+                logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
+
                 memory_service = ChatMemoryService(
                     message_repo=msg_repo,
                     chat_repo=chat_repo,
                     llm_client=llm_client
                 )
-                await memory_service.compress_if_needed(chat_id=chat_id)
-
-                await manager.send_to_user(chat_id, data)
-                logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
+                is_compressed = await memory_service.compress_if_needed(chat_id=chat_id)
+                if is_compressed:
+                    logging.info("Messages in chat %s has been compressed", chat_id)
         except Exception as db_error:
             logging.error(f"❌ DB error: {db_error}")
         finally:

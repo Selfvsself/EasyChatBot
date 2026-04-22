@@ -33,23 +33,33 @@ class TranslatorHandler(BaseHandler):
         except (json.JSONDecodeError, ValidationError, TypeError):
             return raw_text
 
-    async def handle(self, chat, app, text, tools, stage_callback=None):
-        history = self.message_repo.get_by_chat(chat.id, limit=20, include_archived=False)
-        memory_part = ""
-        if chat.memory_summary:
-            memory_part = f"\n\nChat memory (summary of archived messages):\n{chat.memory_summary.strip()}"
+    @staticmethod
+    def _build_messages_block(messages):
+        lines = []
+        for message in messages:
+            role = getattr(message, "role", "user")
+            if role == "system":
+                continue
+            text = str(getattr(message, "text", "")).strip().replace("\n", " ")
+            if text:
+                lines.append(f"{role}: {text}")
+        return "\n".join(lines)
 
-        system_prompt = (
-            f"{app.system_prompt}{memory_part}\n\n"
-            "You are in translator mode. "
-            "Preserve meaning, tone, and named entities accurately."
-        )
+    async def handle(self, chat, app, text, tools, stage_callback=None):
+        extracted_facts = "None"
+        if chat.memory_summary:
+            extracted_facts = f"\n\nChat memory (summary of archived messages):\n{chat.memory_summary.strip()}"
+        history = self.message_repo.get_by_chat(chat.id, limit=50, include_archived=False)
+        system_prompt = app.system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", extracted_facts)
+
+
         prompt = self.build_prompt(system=system_prompt, history=list(reversed(history)), text=text)
         raw_answer = await self.orchestrator.run(
-            base_messages=prompt,
-            chat=chat,
-            app=app,
+            user_query=text,
+            history=prompt,
+            context=extracted_facts,
             tools=tools,
             stage_callback=stage_callback,
+            response_format="json"
         )
         return self._extract_translation(raw_answer)
