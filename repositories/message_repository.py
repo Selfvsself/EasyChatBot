@@ -19,13 +19,13 @@ class MessageRepository(BaseRepository):
         )
         return self.add(msg)
 
-    def get_by_chat(self, chat_id, limit=50, offset=0, include_archived=True):
+    def get_by_chat(self, chat_id, limit=50, offset=0, include_archived=True, reverse=False):
         query = self.db.query(Message).filter(Message.chat_id == chat_id)
         if not include_archived:
             query = query.filter(Message.is_archived.is_(False))
 
         return (
-            query.order_by(Message.created_at.desc())
+            query.order_by(Message.created_at.asc() if reverse else Message.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()

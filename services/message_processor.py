@@ -1,7 +1,9 @@
+import logging
 from types import SimpleNamespace
 
 from handlers.default_handler import DefaultHandler
 from handlers.translator_handler import TranslatorHandler
+from handlers.web_search_handler import WebSearchHandler
 
 from handlers.tools.confluence_search_tool import ConfluenceSearchTool
 from handlers.tools.jira_search_tool import JiraSearchTool
@@ -19,7 +21,7 @@ class MessageProcessor:
         self.handlers = {
             "english-translator": TranslatorHandler(llm_client, message_repo),
             "russian-translator": TranslatorHandler(llm_client, message_repo),
-            "duckduckgo-search": DefaultHandler(llm_client, message_repo),
+            "duckduckgo-search": WebSearchHandler(llm_client, message_repo),
             "jira-search": DefaultHandler(llm_client, message_repo),
             "confluence-search": DefaultHandler(llm_client, message_repo),
             "jira-confluence-search": DefaultHandler(llm_client, message_repo),
@@ -31,7 +33,7 @@ class MessageProcessor:
             "confluence-search": ConfluenceSearchTool(llm_client, message_repo),
         }
 
-    async def process(self, chat_id: str, user_id: str, text, stage_callback=None) -> str:
+    async def process(self, chat_id: str, text, stage_callback=None) -> str:
         chat = self.chat_repo.get_by_id(chat_id)
 
         app = self.app_repo.get_by_id(chat.app_id)
@@ -41,8 +43,13 @@ class MessageProcessor:
 
         app_ctx = SimpleNamespace(
             system_prompt=app.system_prompt,
-            tool_codes=tool_codes
+            chat_id=chat.id,
+            chat_memory=chat.memory_summary or "None"
         )
 
         handler = self.handlers.get(app.code, self.handlers["default"])
-        return await handler.handle(chat, app_ctx, text, tools, stage_callback=stage_callback)
+        try:
+            return await handler.handle(text, app_ctx, tools, stage_callback=stage_callback)
+        except Exception as exc:
+            logging.error(exc)
+            return f"Произошла ошибка: {exc}"

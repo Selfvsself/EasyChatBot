@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 import httpx
+from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, ValidationError
 
 from core.config import settings
@@ -157,9 +158,9 @@ class JiraSearchTool(BaseTool):
         return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
     async def _fetch_issue_details(
-        self,
-        issue_key: str,
-        stage_callback=None,
+            self,
+            issue_key: str,
+            stage_callback=None,
     ) -> dict[str, Any] | None:
         if stage_callback:
             await stage_callback(
@@ -202,7 +203,8 @@ class JiraSearchTool(BaseTool):
             "comments": comment_texts,
         }
 
-    async def _fetch_many_issue_details(self, issues: list[dict[str, str]], stage_callback=None) -> list[dict[str, Any]]:
+    async def _fetch_many_issue_details(self, issues: list[dict[str, str]], stage_callback=None) -> list[
+        dict[str, Any]]:
         detailed: list[dict[str, Any]] = []
         for item in issues:
             key = item.get("key")
@@ -214,10 +216,10 @@ class JiraSearchTool(BaseTool):
         return detailed
 
     async def _analyze_with_llm(
-        self,
-        user_query: str,
-        jql: str,
-        issues: list[dict[str, Any]],
+            self,
+            user_query: str,
+            jql: str,
+            issues: list[dict[str, Any]],
     ) -> AnalysisResult:
         if not issues:
             return self.AnalysisResult(
@@ -251,10 +253,10 @@ class JiraSearchTool(BaseTool):
             system=analysis_system,
             history=[],
             text=(
-                f"User query:\n{user_query}\n\n"
-                f"JQL used:\n{jql}\n\n"
-                "Issue details:\n\n"
-                + "\n\n".join(blocks)
+                    f"User query:\n{user_query}\n\n"
+                    f"JQL used:\n{jql}\n\n"
+                    "Issue details:\n\n"
+                    + "\n\n".join(blocks)
             ),
         )
 
@@ -273,10 +275,10 @@ class JiraSearchTool(BaseTool):
             )
 
     async def _best_effort_answer_with_llm(
-        self,
-        user_query: str,
-        jql: str,
-        issues: list[dict[str, Any]],
+            self,
+            user_query: str,
+            jql: str,
+            issues: list[dict[str, Any]],
     ) -> str:
         if not issues:
             return "No relevant Jira ticket details were found."
@@ -300,10 +302,10 @@ class JiraSearchTool(BaseTool):
             ),
             history=[],
             text=(
-                f"User query:\n{user_query}\n\n"
-                f"JQL used:\n{jql}\n\n"
-                "Issue details:\n\n"
-                + "\n\n".join(blocks)
+                    f"User query:\n{user_query}\n\n"
+                    f"JQL used:\n{jql}\n\n"
+                    "Issue details:\n\n"
+                    + "\n\n".join(blocks)
             ),
         )
         answer = await self.llm.chat(prompt)
@@ -354,19 +356,7 @@ class JiraSearchTool(BaseTool):
             )
         return "\n\n".join(lines)
 
-    async def processing(self, chat, app, text):
-        results, error = await self._search(text)
-        if error:
-            return f"Jira search tool error: {error}"
-
-        return (
-            "Jira ticket search results are provided below. "
-            "Use ticket status and priority as factual context. "
-            "If no relevant ticket is present, say so clearly.\n\n"
-            f"{self._format_results(results)}"
-        )
-
-    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None) -> str:
+    async def run(self, query: str, history=None, context=None, stage_callback=None) -> str:
         if stage_callback:
             await stage_callback(
                 stage="jira_query_planning",
@@ -417,3 +407,6 @@ class JiraSearchTool(BaseTool):
             )
 
         return f"JQL used: {final_jql}\n\n" + "\n\n".join(blocks)
+
+    async def toStructuredTool(self) -> StructuredTool:
+        pass

@@ -1,7 +1,7 @@
 from abc import abstractmethod
+from types import SimpleNamespace
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from .tools.base_tool import BaseTool
 
 
 class BaseHandler:
@@ -10,63 +10,71 @@ class BaseHandler:
         self.llm = llm_client
         self.message_repo = message_repo
 
-    async def processing_tools(self, tools, chat, app, text):
-        tool_result = []
-        for tool in tools:
-            response = await tool.processing(chat, app, text)
-            tool_result.append(response)
-        return "\n".join(tool_result)
-
     @staticmethod
-    def _to_langchain_history(history):
+    def _to_dict_history(history):
         converted = []
         for message in history:
             role = getattr(message, "role", "user")
             content = str(getattr(message, "text", ""))
 
-            if role == "system":
-                converted.append(SystemMessage(content=content))
-            elif role == "assistant":
-                converted.append(AIMessage(content=content))
-            else:
-                converted.append(HumanMessage(content=content))
+            converted.append({"role": role, "content": content})
 
         return converted
 
-    def build_prompt(self, system, history, text):
-        history_messages = self._to_langchain_history(history)
+    def clean_history(self, history, text):
+        """
+        Удаляет последнее сообщение в истории, если оно дублирует текущий ввод (text).
 
-        has_duplicate_user_tail = (
-            bool(history_messages)
-            and isinstance(history_messages[-1], HumanMessage)
-            and history_messages[-1].content == text
-        )
+        Это предотвращает зацикливание или повторную обработку одного и того же запроса.
+        """
 
-        if has_duplicate_user_tail:
-            prompt_template = ChatPromptTemplate.from_messages(
-                [
-                    ("system", "{system}"),
-                    MessagesPlaceholder(variable_name="history"),
-                ]
-            )
-            return prompt_template.format_messages(
-                system=system,
-                history=history_messages,
-            )
+        if not history:
+            history = []
 
-        prompt_template = ChatPromptTemplate.from_messages(
-            [
-                ("system", "{system}"),
-                MessagesPlaceholder(variable_name="history"),
-                ("human", "{text}"),
-            ]
-        )
-        return prompt_template.format_messages(
-            system=system,
-            history=history_messages,
-            text=text,
-        )
+        last_message = history[-1]
+
+        if (hasattr(last_message, 'role') and last_message.role.strip() == "user" and
+                hasattr(last_message, 'text') and last_message.text.strip() == text.strip()):
+            history.pop()
+
+        return self._to_dict_history(history)
+
+    def prepare_chat_memory(self, context):
+        """
+        Проверяет и подготавливает chat_memory
+        """
+
+        chat_memory = context.chat_memory
+        if not chat_memory:
+            chat_memory = "None"
+        return chat_memory
+
+    def prepare_system_prompt(self, context, chat_memory):
+        """
+        Проверяет и подготавливает system_prompt
+        """
+
+        system_prompt = context.system_prompt
+        if not system_prompt:
+            raise ValueError("System prompt is missing or empty")
+        if not chat_memory:
+            raise ValueError("Chat id is missing or empty")
+        system_prompt = system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", chat_memory)
+        return system_prompt
+
+    def get_chat_history(self, context, user_query):
+        """
+        Получает историю сообщений для чата
+        """
+
+        chat_id = context.chat_id
+        if not chat_id:
+            raise ValueError("chat_id is missing or empty")
+        history = self.message_repo.get_by_chat(chat_id, limit=50, include_archived=False, reverse=True)
+        cleaned_history = self.clean_history(history, user_query)
+        return cleaned_history
 
     @abstractmethod
-    async def handle(self, chat, app, text, tools, stage_callback=None):
+    async def handle(self, user_query: str, context: SimpleNamespace, tools: list[BaseTool],
+                     stage_callback=None) -> str:
         pass

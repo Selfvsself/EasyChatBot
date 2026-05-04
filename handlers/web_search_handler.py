@@ -4,7 +4,7 @@ from .pipelines.steps.pipeline_context import PipelineContext
 from .base_handler import BaseHandler
 
 
-class DefaultHandler(BaseHandler):
+class WebSearchHandler(BaseHandler):
     MAX_ITERATIONS = 3
 
     def __init__(self, llm_client, message_repo):
@@ -22,6 +22,6 @@ class DefaultHandler(BaseHandler):
             history=history,
             system_prompt=system_prompt
         )
-        pipeline = self.pipeline.simple_pipeline()
+        pipeline = self.pipeline.web_search_pipeline()
         result = await self.orchestrator.run(pipeline, context, stage_callback)
         return result

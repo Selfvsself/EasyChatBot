@@ -491,6 +491,7 @@
         agent_validating: { text: "Проверяю ответ", icon: "shield-check" },
         agent_replanning: { text: "Уточняю стратегию", icon: "arrow-repeat" },
         reading: { text: "Читаю сайт", icon: "book" },
+        site_thinking: { text: "Думаю", icon: "book" },
         tooling: { text: "Выполняю инструмент", icon: "tools" },
         typing: { text: "Печатаю", icon: "keyboard" }
     };
@@ -612,6 +613,17 @@
 
         if (stage === "site_reading") {
             setBotStatus("reading");
+            const siteUrl = (msg.metadata?.url || "").trim();
+            const host = getHostname(siteUrl);
+            if (host) {
+                botStatusQuery.textContent = `${host}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "site_thinking") {
+            setBotStatus("site_thinking");
             const siteUrl = (msg.metadata?.url || "").trim();
             const host = getHostname(siteUrl);
             if (host) {

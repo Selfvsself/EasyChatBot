@@ -84,7 +84,6 @@ async def run_worker():
 
                 response_text = await processor.process(
                     chat_id=chat_id,
-                    user_id=user_id,
                     text=text,
                     stage_callback=emit_stage,
                 )

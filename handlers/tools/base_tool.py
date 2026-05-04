@@ -1,7 +1,8 @@
 from abc import abstractmethod
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.tools import StructuredTool
 
 
 class BaseTool:
@@ -30,9 +31,9 @@ class BaseTool:
         history_messages = self._to_langchain_history(history)
 
         has_duplicate_user_tail = (
-            bool(history_messages)
-            and isinstance(history_messages[-1], HumanMessage)
-            and history_messages[-1].content == text
+                bool(history_messages)
+                and isinstance(history_messages[-1], HumanMessage)
+                and history_messages[-1].content == text
         )
 
         if has_duplicate_user_tail:
@@ -61,9 +62,9 @@ class BaseTool:
         )
 
     @abstractmethod
-    async def processing(self, chat, app, text):
+    async def run(self, query: str, history=None, context=None, stage_callback=None):
         pass
 
     @abstractmethod
-    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None):
+    async def toStructuredTool(self) -> StructuredTool:
         pass

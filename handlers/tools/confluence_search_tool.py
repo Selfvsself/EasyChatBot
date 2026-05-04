@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
+from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, ValidationError
 
 from core.config import settings
@@ -226,15 +227,16 @@ class ConfluenceSearchTool(BaseTool):
         return extracted[:self.MAX_RESULTS]
 
     async def _fetch_page_details(
-        self,
-        page_id: str,
-        fallback_title: str,
-        stage_callback=None,
+            self,
+            page_id: str,
+            fallback_title: str,
+            stage_callback=None,
     ) -> dict[str, str] | None:
         if stage_callback:
             await stage_callback(
                 stage="confluence_page_opening",
-                metadata={"id": page_id, "title": fallback_title, "url": f"{self.wiki_base}/pages/viewpage.action?pageId={page_id}"},
+                metadata={"id": page_id, "title": fallback_title,
+                          "url": f"{self.wiki_base}/pages/viewpage.action?pageId={page_id}"},
             )
 
         headers, auth = self._auth_headers()
@@ -279,10 +281,10 @@ class ConfluenceSearchTool(BaseTool):
         return detailed
 
     async def _analyze_with_llm(
-        self,
-        user_query: str,
-        cql: str,
-        pages: list[dict[str, str]],
+            self,
+            user_query: str,
+            cql: str,
+            pages: list[dict[str, str]],
     ) -> AnalysisResult:
         if not pages:
             return self.AnalysisResult(
@@ -313,10 +315,10 @@ class ConfluenceSearchTool(BaseTool):
             system=system,
             history=[],
             text=(
-                f"User query:\n{user_query}\n\n"
-                f"CQL used:\n{cql}\n\n"
-                "Page details:\n\n"
-                + "\n\n".join(blocks)
+                    f"User query:\n{user_query}\n\n"
+                    f"CQL used:\n{cql}\n\n"
+                    "Page details:\n\n"
+                    + "\n\n".join(blocks)
             ),
         )
 
@@ -335,10 +337,10 @@ class ConfluenceSearchTool(BaseTool):
             )
 
     async def _best_effort_answer_with_llm(
-        self,
-        user_query: str,
-        cql: str,
-        pages: list[dict[str, str]],
+            self,
+            user_query: str,
+            cql: str,
+            pages: list[dict[str, str]],
     ) -> str:
         if not pages:
             return "No relevant Confluence page details were found."
@@ -359,37 +361,16 @@ class ConfluenceSearchTool(BaseTool):
             ),
             history=[],
             text=(
-                f"User query:\n{user_query}\n\n"
-                f"CQL used:\n{cql}\n\n"
-                "Page details:\n\n"
-                + "\n\n".join(blocks)
+                    f"User query:\n{user_query}\n\n"
+                    f"CQL used:\n{cql}\n\n"
+                    "Page details:\n\n"
+                    + "\n\n".join(blocks)
             ),
         )
         answer = await self.llm.chat(prompt)
         return (answer or "").strip() or "Could not produce a Confluence answer."
 
-    async def processing(self, chat, app, text):
-        pages, error = await self._search_by_cql(self._build_cql(text))
-        if error:
-            return f"Confluence search tool error: {error}"
-
-        if not pages:
-            return "No Confluence pages found."
-
-        lines = []
-        for idx, page in enumerate(pages, start=1):
-            lines.append(
-                f"{idx}. {page['title']}\n"
-                f"URL: {page['url']}\n"
-                f"Excerpt: {page['excerpt'] or 'n/a'}"
-            )
-        return (
-            "Confluence page search results are provided below. "
-            "Use this as factual context and cite page URLs when relevant.\n\n"
-            + "\n\n".join(lines)
-        )
-
-    async def run_for_agent(self, query: str, history=None, context=None, stage_callback=None) -> str:
+    async def run(self, query: str, history=None, context=None, stage_callback=None) -> str:
         if stage_callback:
             await stage_callback(
                 stage="confluence_query_planning",
@@ -432,3 +413,6 @@ class ConfluenceSearchTool(BaseTool):
             )
 
         return f"CQL used: {final_cql}\n\n" + "\n\n".join(blocks)
+
+    async def toStructuredTool(self) -> StructuredTool:
+        pass
