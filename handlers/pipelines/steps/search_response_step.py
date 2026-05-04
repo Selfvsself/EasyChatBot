@@ -33,7 +33,7 @@ class SearchResponseStep(PipelineStep):
         search_results = self.get_search_results(context)
         if not search_results:
             search_results = ['Nothing found for this request']
-        combined_summaries = ",".join(search["text"] for search in search_results)
+        combined_summaries = self.get_answer(context)
 
         await self._emit_stage(stage_callback, stage="sources_used", metadata={
             "sources": [{"title": src["title"], "url": src["url"]} for src in search_results]

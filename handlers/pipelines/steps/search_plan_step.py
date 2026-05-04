@@ -1,5 +1,6 @@
 import json
 from typing import Any, Coroutine
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -54,7 +55,6 @@ class SearchPlanStep(PipelineStep):
 
         result_ctx = PipelineContext.from_context(context)
         if search_plan.web_search_required:
-            result_ctx.intent = search_plan.intent
             result_ctx.validation_condition = search_plan.stop_condition
             result_ctx.search_queries = search_plan.search_queries
         return StepResult(context=result_ctx, stop=False)
@@ -63,11 +63,14 @@ class SearchPlanStep(PipelineStep):
         return "web_query_planning"
 
     def system_prompt(self):
+        current_date = datetime.now().strftime("%A, %d %B %Y")
+
         return (
             "You are a search planner.\n"
             "Your job is to create a structured plan for retrieving information.\n\n"
 
             "RULES:\n"
+            f"- The current date is {current_date}. Use this to determine if the query requires fresh information.\n"
             "- Do NOT answer the question\n"
             "- Do NOT call any tools\n"
             "- Only return JSON\n"
@@ -78,17 +81,21 @@ class SearchPlanStep(PipelineStep):
             "- The search must be done in the user's language\n"
             "- Limit search queries maximum 2\n"
             "- Prefer broad, aggregated queries\n"
+            "- Rule for transliterated brands: If the entity is a global or foreign brand, always generate one query in native/English spelling and one in the user's localized spelling"
+            "- Rule for disambiguation: If the user's slang or localized spelling creates homonyms with other objects, always add a strict category"
+            "- Multi-perspective search: Ensure the two queries look at the problem from different angles"
             "- Avoid per-entity searches\n"
-            "- Create search queries in the language of the user's last message\n\n"
+            "- Create search queries in the language of the user's last message\n"
+            "- When generating 'search_queries', include minimal necessary context (like the current year or specific constraint) ONLY if it is critical to find the correct answer. Avoid long sentences in queries.\n\n"
 
             "OUTPUT JSON SCHEMA:\n"
             "{\n"
-            "  \"web_search_required\": bool\n"
+            "  \"web_search_required\": bool,\n"
             "  \"intent\": str,\n"
             "  \"required_info\": list[str],\n"
-            "  \"search_queries\": list[str],\n"
+            "  \"search_queries\": list[str],  // Add short context (e.g., year) only if critical\n"
             "  \"strategy\": str,\n"
             "  \"stop_condition\": str,\n"
-            "  \"max_searches\": int,\n"
+            "  \"max_searches\": int\n"
             "}"
         )

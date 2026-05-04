@@ -51,15 +51,6 @@ class PipelineStep:
         return validation_condition
 
     @staticmethod
-    def get_intent(context: PipelineContext = None):
-        if not context:
-            raise ValueError("context is missing or empty")
-        intent = context.intent
-        if not intent:
-            raise ValueError("intent is missing or empty")
-        return intent
-
-    @staticmethod
     def get_answer(context: PipelineContext = None):
         if not context:
             raise ValueError("context is missing or empty")
