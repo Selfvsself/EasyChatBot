@@ -1,11 +1,11 @@
 from handlers.pipelines.steps.step_result import StepResult
 from handlers.pipelines.steps.base_step import BaseStep
 from handlers.pipelines.steps.step_context import StepContext
-from handlers.pipelines.steps.plan_step import PlanStep, StepAction
+from handlers.pipelines.steps.plan_step import PlanStep
+from handlers.pipelines.steps.enum.step_action import StepAction
 from handlers.pipelines.steps.generate_step import GenerateStep
-from handlers.pipelines.steps.search_web_step import SearchWebStep
-from handlers.pipelines.steps.search_page_source_step import SearchPageSourceStep
-from handlers.pipelines.steps.search_summary_step import SearchSummaryStep
+from handlers.pipelines.agent_web_search_pipeline import WebAgentPipeline
+from handlers.pipelines.steps.validation_criteria_step import ValidationCriteriaStep
 from handlers.pipelines.steps.search_validations_step import SearchValidationStep, ValidationAction
 
 
@@ -17,10 +17,9 @@ class AgentPipeline(BaseStep):
         self.max_attempt = max_attempt
         self.plan_step = PlanStep(self.llm_client)
         self.answer_step = GenerateStep(self.llm_client)
-        self.web_search = SearchWebStep(self.llm_client, max_results=max_pages * 2)
-        self.web_source = SearchPageSourceStep(self.llm_client)
-        self.web_summary = SearchSummaryStep(self.llm_client)
+        self.web_agent = WebAgentPipeline(self.llm_client)
         self.web_validation = SearchValidationStep(self.llm_client)
+        self.validation_criteria = ValidationCriteriaStep(self.llm_client)
 
     async def execute(self, context: StepContext, stage_callback=None) -> StepResult:
         if not context:
@@ -31,49 +30,26 @@ class AgentPipeline(BaseStep):
             search_plan = await self.plan_step.execute(last_context)
             last_context = search_plan.context
             next_step = last_context.action
+            valid_criteria = await self.validation_criteria.execute(last_context)
+            last_context = valid_criteria.context
             if next_step == StepAction.SEARCH:
-                await self._emit_stage(stage_callback, "web_query_planning", {})
-                await self._emit_stage(stage_callback, stage="web_search_running", metadata={"query": last_context.next_step_query})
-                result = await self.web_search.execute(last_context)
-                last_context = result.context
-                search_results = last_context.search_results
-                source_pages = []
-                for search_result in search_results:
-                    await self._emit_stage(stage_callback, stage="site_reading", metadata={
-                        "url": search_result.url,
-                        "title": search_result.title})
-                    search_context = StepContext.from_context(last_context)
-                    search_context.search_results = [search_result]
-                    source_page_result = await self.web_source.execute(search_context)
-                    source_page_ctx = source_page_result.context
-                    actual_source_page = source_page_ctx.search_results
-                    if actual_source_page:
-                        source_pages.extend(actual_source_page)
-                        if len(source_pages) >= self.max_pages:
-                            break
-                source_ctx = StepContext.from_context(last_context)
-                source_ctx.search_results = source_pages
-                await self._emit_stage(stage_callback, "thinking", {})
-                summary_result = await self.web_summary.execute(source_ctx)
-                summary_ctx = summary_result.context
-                if not summary_ctx:
-                    continue
-                answer_result = await self.answer_step.execute(summary_ctx)
-                last_context = answer_result.context
+                web_result = await self.web_agent.execute(last_context, stage_callback)
+                last_context = web_result.context
             elif next_step == StepAction.CLARIFY:
                 await self._emit_stage(stage_callback, "thinking", {})
-                result_ctx = StepContext.from_context(last_context)
-                result_ctx.answer = result_ctx.next_step_query
-                return StepResult(context=result_ctx, stop=False)
+                last_context = StepContext.from_context(last_context)
+                last_context.answer = last_context.next_step_query
+                return StepResult(context=last_context, stop=False)
             else:
                 await self._emit_stage(stage_callback, "thinking", {})
+                await self.send_sources(last_context, stage_callback)
                 result = await self.answer_step.execute(last_context)
-                result_ctx = result.context
-                last_context = result_ctx
+                last_context = result.context
 
             await self._emit_stage(stage_callback, "web_validating", {})
             valid_result = await self.web_validation.execute(last_context)
             if valid_result.success or attempt == max_attempts - 1:
+                await self.send_sources(last_context, stage_callback)
                 return StepResult(context=last_context, stop=False)
             else:
                 await self._emit_stage(stage_callback, "thinking", {})
@@ -85,11 +61,21 @@ class AgentPipeline(BaseStep):
                     valid_second_result = await self.web_validation.execute(answer_second_ctx)
                     if valid_second_result.success:
                         last_context = answer_second_ctx
+                        await self.send_sources(last_context, stage_callback)
                         return StepResult(context=last_context, stop=False)
                 else:
                     continue
+
+        await self.send_sources(last_context, stage_callback)
 
         return StepResult(context=last_context, stop=False)
 
     def stage(self) -> str:
         return "thinking"
+
+    async def send_sources(self, context: StepContext, stage_callback=None):
+        sources = context.search_results
+        if sources:
+            await self._emit_stage(stage_callback, stage="sources_used", metadata={
+                "sources": [{"title": src.title, "url": src.url} for src in sources]
+            })

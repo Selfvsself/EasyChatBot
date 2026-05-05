@@ -21,4 +21,5 @@ class PipelineOrchestrator:
             if result.stop:
                 break
             last_context = result.context
+        print(result.context.to_json_string())
         return result.context.answer

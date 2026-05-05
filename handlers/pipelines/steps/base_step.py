@@ -1,8 +1,9 @@
 import re
 from abc import abstractmethod
 
-from handlers.pipelines.steps.step_result import StepResult
+from handlers.pipelines.steps.enum.step_action import StepAction
 from handlers.pipelines.steps.step_context import StepContext
+from handlers.pipelines.steps.step_result import StepResult
 
 
 class BaseStep:
@@ -38,11 +39,7 @@ class BaseStep:
             raise ValueError("user_input is missing or empty")
         return user_input
 
-    def system_prompt(self):
-        return None
-
-    @staticmethod
-    def get_system_prompt(context: StepContext = None):
+    def get_system_prompt(self, context: StepContext = None):
         if not context:
             raise ValueError("context is missing or empty")
         return context.system_prompt
@@ -66,8 +63,6 @@ class BaseStep:
         if not context:
             raise ValueError("context is missing or empty")
         next_step_query = context.next_step_query
-        if not next_step_query:
-            raise ValueError("next_step_query is missing or empty")
         return next_step_query
 
     @staticmethod
@@ -76,6 +71,13 @@ class BaseStep:
         if context and context.search_results:
             return context.search_results
         return search_results
+
+    @staticmethod
+    def get_action(context: StepContext = None):
+        action = StepAction.RESPOND
+        if context:
+            return context.action
+        return action
 
     @staticmethod
     def get_internal_messages(context: StepContext = None):
@@ -87,7 +89,7 @@ class BaseStep:
     def create_messages(self,
                         system_prompt: str,
                         history: list[dict],
-                        internal_messages:list[str],
+                        internal_messages: list[str],
                         user_query: str) -> list[dict]:
         messages = []
 
@@ -98,9 +100,6 @@ class BaseStep:
         if history:
             messages.extend(history)
 
-        if user_query:
-            messages.append({"role": "user", "content": user_query})
-
         if internal_messages:
             internal_message = "<thought>\n"
             for idx, msg in enumerate(internal_messages):
@@ -110,5 +109,8 @@ class BaseStep:
             internal_message += "</thought>"
 
             messages.append({"role": "assistant", "content": internal_message})
+
+        if user_query:
+            messages.append({"role": "user", "content": user_query})
 
         return messages

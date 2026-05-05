@@ -42,14 +42,13 @@ class SearchSummaryStep(BaseStep):
         if not search_results:
             return StepResult(context=context, stop=False, success=False)
 
-        system_prompt = self.system_prompt()
+        system_prompt = self.get_system_prompt(context)
         history = self.get_history(context)
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
         user_message = self.user_message(user_query, validation_condition, search_results)
         internal_messages = self.get_internal_messages(context)
-        messages = self.create_messages(system_prompt, history, internal_messages, user_query)
-        messages.append({"role": "user", "content": user_message})
+        messages = self.create_messages(system_prompt, history, internal_messages, user_message)
         batch_result = await self.parse_summary_result_with_retry(messages)
 
         is_success = len(batch_result.useful_site_indices) > 0
@@ -104,7 +103,7 @@ class SearchSummaryStep(BaseStep):
             f"{sites_text}"
         )
 
-    def system_prompt(self):
+    def get_system_prompt(self, context: StepContext = None):
         return (
             "You are an information extraction assistant.\n"
             "Your job is to analyze the list of webpage texts and extract only the information relevant to the user's query and criteria.\n\n"

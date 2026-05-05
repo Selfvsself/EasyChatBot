@@ -20,7 +20,7 @@ class SearchValidationStep(BaseStep):
         action_payload: str = Field("", description="Payload for action (e.g., new search query)")
 
     async def validate_response_with_retry(self, context: StepContext) -> ValidationResponse:
-        system_prompt = self.system_prompt()
+        system_prompt = self.get_system_prompt(context)
         history = self.get_history(context)
         user_query = self.get_user_query(context)
         current_answer = self.get_next_step_query(context)
@@ -28,8 +28,7 @@ class SearchValidationStep(BaseStep):
         search_results = self.get_search_results(context)
         user_message = self.user_message(user_query, validation_condition, current_answer, search_results)
         internal_messages = self.get_internal_messages(context)
-        messages = self.create_messages(system_prompt, history, internal_messages, user_query)
-        messages.append({"role": "user", "content": user_message})
+        messages = self.create_messages(system_prompt, history, internal_messages, user_message)
         max_attempts = 3
 
         for attempt in range(max_attempts):
@@ -100,7 +99,7 @@ class SearchValidationStep(BaseStep):
     def stage(self) -> str:
         return "web_validating"
 
-    def system_prompt(self) -> str:
+    def get_system_prompt(self, context: StepContext = None):
         return (
             "You are a response validator.\n"
             "Your job is to check if the generated answer satisfies the search plan and stop conditions.\n\n"

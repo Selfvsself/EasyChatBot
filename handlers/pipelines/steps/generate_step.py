@@ -30,7 +30,6 @@ class GenerateStep(BaseStep):
         user_query = self.get_user_query(context)
         internal_messages = self.get_internal_messages(context)
         messages = self.create_messages(system_prompt, history, internal_messages, user_query)
-        messages.append({"role": "user", "content": user_query})
         answer = await self.get_answer_with_retry(messages, user_query)
         result_ctx = StepContext.from_context(context)
         result_ctx.answer = answer
