@@ -1,6 +1,6 @@
 from .pipelines.pipeline_factory import PipelineFactory
-from .pipelines.pipeline_orchestrator import PipelineOrchestrator
-from .pipelines.steps.pipeline_context import PipelineContext
+from .pipelines.pipeline_orchestrator2 import PipelineOrchestrator
+from .pipelines.steps2.step_context import StepContext
 from .base_handler import BaseHandler
 
 
@@ -17,11 +17,11 @@ class WebSearchHandler(BaseHandler):
         chat_memory = self.prepare_chat_memory(context)
         system_prompt = self.prepare_system_prompt(context, chat_memory)
 
-        context = PipelineContext(
+        context = StepContext(
             user_input=user_query,
             history=history,
             system_prompt=system_prompt
         )
-        pipeline = self.pipeline.web_search_pipeline()
+        pipeline = self.pipeline.web_search_agent()
         result = await self.orchestrator.run(pipeline, context, stage_callback)
         return result

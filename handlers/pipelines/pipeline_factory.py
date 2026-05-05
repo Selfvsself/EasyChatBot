@@ -3,9 +3,9 @@ from handlers.pipelines.steps.generate_json_step import GenerateJsonStep
 from handlers.pipelines.steps.search_plan_step import SearchPlanStep
 from handlers.pipelines.steps.search_web_step import SearchWebStep
 from handlers.pipelines.steps.search_page_source_step import SearchPageSourceStep
-# from handlers.pipelines.steps.search_all_summary_step import SearchSummaryStep
 from handlers.pipelines.steps.search_agr_summary_step import SearchSummaryStep
 from handlers.pipelines.steps.search_response_step import SearchResponseStep
+from handlers.pipelines.agent_pipeline import AgentPipeline
 
 class PipelineFactory:
 
@@ -29,4 +29,9 @@ class PipelineFactory:
             SearchPageSourceStep(self.llm_client, max_results=8),
             SearchSummaryStep(self.llm_client),
             SearchResponseStep(self.llm_client)
+        ]
+
+    def web_search_agent(self):
+        return [
+            AgentPipeline(self.llm_client)
         ]

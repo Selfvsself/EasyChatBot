@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any, Iterable, Sequence
+import logging
 
 from langchain_core.messages import (
     AIMessage,
@@ -93,6 +94,7 @@ class LLMClient:
             return response
 
         content = response.content
+        logging.info(f"Total tokens: {response.usage_metadata.get('total_tokens', 0)}")
         return content if isinstance(content, str) else str(content)
 
     async def chat_text(
