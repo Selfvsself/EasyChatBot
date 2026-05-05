@@ -30,7 +30,7 @@ class WebSearchTool:
                 max_results=self.MAX_RESULTS,
                 region="ru-ru",
                 safesearch="on",
-                backend="auto"
+                backend="yandex, duckduckgo, brave, yahoo"
             )
         return list(results or [])
 

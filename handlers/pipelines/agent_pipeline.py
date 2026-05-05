@@ -17,7 +17,7 @@ class AgentPipeline(BaseStep):
         self.max_attempt = max_attempt
         self.plan_step = PlanStep(self.llm_client)
         self.answer_step = GenerateStep(self.llm_client)
-        self.web_agent = WebAgentPipeline(self.llm_client)
+        self.web_agent = WebAgentPipeline(self.llm_client, max_pages=10)
         self.web_validation = SearchValidationStep(self.llm_client)
         self.validation_criteria = ValidationCriteriaStep(self.llm_client)
 
