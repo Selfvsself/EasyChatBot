@@ -1,6 +1,6 @@
 from .pipelines.pipeline_factory import PipelineFactory
-from .pipelines.pipeline_orchestrator2 import PipelineOrchestrator
-from .pipelines.steps2.step_context import StepContext
+from .pipelines.pipeline_orchestrator import PipelineOrchestrator
+from .pipelines.steps.step_context import StepContext
 from .base_handler import BaseHandler
 
 

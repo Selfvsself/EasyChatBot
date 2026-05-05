@@ -1,6 +1,6 @@
 from .pipelines.pipeline_factory import PipelineFactory
 from .pipelines.pipeline_orchestrator import PipelineOrchestrator
-from .pipelines.steps.pipeline_context import PipelineContext
+from .pipelines.steps.step_context import StepContext
 from .base_handler import BaseHandler
 
 
@@ -17,7 +17,7 @@ class DefaultHandler(BaseHandler):
         chat_memory = self.prepare_chat_memory(context)
         system_prompt = self.prepare_system_prompt(context, chat_memory)
 
-        context = PipelineContext(
+        context = StepContext(
             user_input=user_query,
             history=history,
             system_prompt=system_prompt

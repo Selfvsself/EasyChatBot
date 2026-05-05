@@ -2,7 +2,7 @@ import re
 from abc import abstractmethod
 
 from handlers.pipelines.steps.step_result import StepResult
-from handlers.pipelines.steps2.step_context import StepContext
+from handlers.pipelines.steps.step_context import StepContext
 
 
 class BaseStep:

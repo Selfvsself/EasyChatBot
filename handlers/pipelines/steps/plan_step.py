@@ -4,9 +4,9 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from handlers.pipelines.steps2.base_step import BaseStep
-from handlers.pipelines.steps2.step_context import StepContext
-from handlers.pipelines.steps2.step_result import StepResult
+from handlers.pipelines.steps.base_step import BaseStep
+from handlers.pipelines.steps.step_context import StepContext
+from handlers.pipelines.steps.step_result import StepResult
 
 
 class StepAction(StrEnum):

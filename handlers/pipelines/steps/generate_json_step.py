@@ -1,9 +1,9 @@
-from handlers.pipelines.steps.pipeline_context import PipelineContext
-from handlers.pipelines.steps.pipeline_step import PipelineStep
+from handlers.pipelines.steps.step_context import StepContext
+from handlers.pipelines.steps.base_step import BaseStep
 from handlers.pipelines.steps.step_result import StepResult
 
 
-class GenerateJsonStep(PipelineStep):
+class GenerateJsonStep(BaseStep):
     async def get_answer_with_retry(self, messages: list[dict], user_query: str) -> str | None:
         answer = None
         max_attempts = 5
@@ -22,13 +22,13 @@ class GenerateJsonStep(PipelineStep):
             answer = user_query
         return answer
 
-    async def execute(self, context: PipelineContext, stage_callback=None) -> StepResult:
+    async def execute(self, context: StepContext, stage_callback=None) -> StepResult:
         if not context:
             raise ValueError("context is missing or empty")
         user_query = self.get_user_query(context)
         messages = self.create_messages(context)
         answer = await self.get_answer_with_retry(messages, user_query)
-        result_ctx = PipelineContext.from_context(context)
+        result_ctx = StepContext.from_context(context)
         result_ctx.answer = answer
         return StepResult(context=result_ctx, stop=False)
 

@@ -1,8 +1,8 @@
-from handlers.pipelines.steps.pipeline_context import PipelineContext
+from handlers.pipelines.steps.step_context import StepContext
 
 
 class StepResult:
-    def __init__(self, context: PipelineContext, stop: bool = False, success: bool = True):
+    def __init__(self, context: StepContext, stop: bool = False, success: bool = True):
         self.context = context
         self.stop = stop
         self.success = success

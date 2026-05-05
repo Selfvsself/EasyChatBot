@@ -1,4 +1,4 @@
-from handlers.pipelines.steps.pipeline_step import PipelineStep
+from handlers.pipelines.steps.base_step import BaseStep
 
 class PipelineOrchestrator:
 
@@ -10,7 +10,7 @@ class PipelineOrchestrator:
         if stage_callback:
             await stage_callback(stage=stage, metadata=metadata or {})
 
-    async def run(self, pipeline: list[PipelineStep], context=None, stage_callback=None):
+    async def run(self, pipeline: list[BaseStep], context=None, stage_callback=None):
         if not context:
             raise ValueError("Pipeline context is missing or empty")
         result = None

@@ -1,12 +1,12 @@
-from handlers.pipelines.steps2.step_result import StepResult
-from handlers.pipelines.steps2.base_step import BaseStep
-from handlers.pipelines.steps2.step_context import StepContext
-from handlers.pipelines.steps2.plan_step import PlanStep, StepAction
-from handlers.pipelines.steps2.generate_step import GenerateStep
-from handlers.pipelines.steps2.search_web_step import SearchWebStep
-from handlers.pipelines.steps2.search_page_source_step import SearchPageSourceStep
-from handlers.pipelines.steps2.search_summary_step import SearchSummaryStep
-from handlers.pipelines.steps2.search_validations_step import SearchValidationStep, ValidationAction
+from handlers.pipelines.steps.step_result import StepResult
+from handlers.pipelines.steps.base_step import BaseStep
+from handlers.pipelines.steps.step_context import StepContext
+from handlers.pipelines.steps.plan_step import PlanStep, StepAction
+from handlers.pipelines.steps.generate_step import GenerateStep
+from handlers.pipelines.steps.search_web_step import SearchWebStep
+from handlers.pipelines.steps.search_page_source_step import SearchPageSourceStep
+from handlers.pipelines.steps.search_summary_step import SearchSummaryStep
+from handlers.pipelines.steps.search_validations_step import SearchValidationStep, ValidationAction
 
 
 class AgentPipeline(BaseStep):
