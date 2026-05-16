@@ -73,5 +73,6 @@ class ValidationCriteriaStep(BaseStep):
             "1. Language: Use the same language as the TARGET STEP.\n"
             "2. Precision: The criteria must be specific to the facts or actions mentioned.\n"
             "3. Format: Return ONLY JSON: {\"completeness_criteria\": \"string\"}.\n"
-            "4. Content: Do not add new tasks. Only describe how to verify the current TARGET STEP."
+            "4. Content: Do not add new tasks. Only describe how to verify the current TARGET STEP.\n"
+            "5. Sources: DO NOT check for presence of sources or citations. References are handled automatically by another system."
         )

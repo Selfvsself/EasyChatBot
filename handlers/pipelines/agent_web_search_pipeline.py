@@ -1,6 +1,7 @@
 from handlers.pipelines.steps.base_step import BaseStep
 from handlers.pipelines.steps.generate_step import GenerateStep
 from handlers.pipelines.steps.search_page_source_step import SearchPageSourceStep
+from handlers.pipelines.steps.search_rag_step import SearchRagStep
 from handlers.pipelines.steps.search_summary_step import SearchSummaryStep
 from handlers.pipelines.steps.search_query_step import SearchQueryStep
 from handlers.pipelines.steps.search_web_step import SearchWebStep
@@ -14,8 +15,9 @@ class WebAgentPipeline(BaseStep):
         super().__init__(llm_client)
         self.max_pages = max_pages
         self.answer_step = GenerateStep(self.llm_client)
-        self.web_search = SearchWebStep(self.llm_client, max_results=max_pages * 2)
+        self.web_search = SearchWebStep(self.llm_client, max_results=max_pages * 2, max_page_chars=12000)
         self.web_source = SearchPageSourceStep(self.llm_client)
+        self.web_rag = SearchRagStep(self.llm_client)
         self.web_summary = SearchSummaryStep(self.llm_client)
         self.web_query = SearchQueryStep(self.llm_client)
 
@@ -48,7 +50,9 @@ class WebAgentPipeline(BaseStep):
         source_ctx = StepContext.from_context(last_context)
         source_ctx.search_results = source_pages
         await self._emit_stage(stage_callback, "thinking", {})
-        summary_result = await self.web_summary.execute(source_ctx)
+        rag_result = await self.web_rag.execute(source_ctx)
+        rag_ctx = rag_result.context
+        summary_result = await self.web_summary.execute(rag_ctx)
         summary_ctx = summary_result.context
         if summary_ctx:
             last_context = summary_ctx

@@ -102,25 +102,28 @@ class SearchValidationStep(BaseStep):
     def get_system_prompt(self, context: StepContext = None):
         return (
             "You are a response validator.\n"
-            "Your job is to check if the generated answer satisfies the search plan and stop conditions.\n\n"
+            "Your job is to check if the generated answer satisfies the search plan and is strictly based on the provided search results.\n\n"
+
+            # f"SEARCH RESULTS DATA:\n{search_results}\n\n"
+            # f"GENERATED ANSWER TO CHECK:\n{answer}\n\n"
 
             "RULES:\n"
-            "- Check if all required info from the plan is present in the answer\n"
-            "- Check if the stop/success condition is fully met\n"
-            "- If the answer is incomplete or incorrect, set 'passed' to false and choose the appropriate 'action'\n"
-            "- Do NOT answer the question yourself\n"
-            "- Only return JSON\n\n"
+            "- FACT-CHECKING: Compare the answer with SEARCH RESULTS DATA. If the answer contains facts, dates, or names NOT present in the data, set 'passed' to false.\n"
+            "- NO HALLUCINATIONS: Ensure the assistant did not invent details to make the answer look better.\n"
+            "- Check if all required info from the plan is present in the answer.\n"
+            "- Check if the stop/success condition is fully met.\n"
+            "- Do NOT answer the question yourself. Only return JSON.\n\n"
 
-            "ACTIONS EXPLANATION (Choose one):\n"
-            "- 'SEARCH': The current search results are insufficient or irrelevant. Suggest a completely NEW search query in 'action_payload'.\n"
-            "- 'CLARIFY': The current search query is good, but you need to fetch more/deeper results for the SAME query. Put the current query in 'action_payload'.\n"
-            "- 'RESPOND': The available data is enough, but the assistant made a mistake generating the answer. Describe what to fix in 'issues' and leave 'action_payload' empty.\n\n"
+            "ACTIONS EXPLANATION:\n"
+            "- 'SEARCH': Data is insufficient/irrelevant. Suggest a NEW search query in 'action_payload'.\n"
+            "- 'CLARIFY': More depth needed for the same query. Put the current query in 'action_payload'.\n"
+            "- 'RESPOND': Data is sufficient, but the assistant made a MISTAKE or HALLUCINATED. Describe the error in 'issues'.\n\n"
 
             "OUTPUT JSON SCHEMA:\n"
             "{\n"
             "  \"passed\": bool,\n"
-            "  \"issues\": \"Specific details on what is missing or incorrect, or empty if passed is true.\",\n"
+            "  \"issues\": \"Describe factual errors or missing info\",\n"
             "  \"action\": \"SEARCH\" | \"CLARIFY\" | \"RESPOND\",\n"
-            "  \"action_payload\": \"Your new query or current query or additional instruction\"\n"
+            "  \"action_payload\": \"string\"\n"
             "}"
         )

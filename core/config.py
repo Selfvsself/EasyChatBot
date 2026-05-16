@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # LLM
     LLM_URL: str = "localhost:11434"
     LLM_MODEL: str = "gpt"
+    RAG_ENABLED: bool = True
+    RAG_EMBEDDING_URL: str = "localhost:11434/api/embed"
+    RAG_EMBEDDING_MODEL: str = "qwen3-embedding:0.6b"
+    RAG_CHUNK_SIZE: int = 3500
+    RAG_CHUNK_OVERLAP: int = 500
+    RAG_TOP_K_CHUNKS_PER_RESULT: int = 1
 
     # Chat memory
     CHAT_MAX_ACTIVE_MESSAGES: int = 10

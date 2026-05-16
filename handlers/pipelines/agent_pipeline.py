@@ -17,7 +17,7 @@ class AgentPipeline(BaseStep):
         self.max_attempt = max_attempt
         self.plan_step = PlanStep(self.llm_client)
         self.answer_step = GenerateStep(self.llm_client)
-        self.web_agent = WebAgentPipeline(self.llm_client, max_pages=10)
+        self.web_agent = WebAgentPipeline(self.llm_client, max_pages=8)
         self.web_validation = SearchValidationStep(self.llm_client)
         self.validation_criteria = ValidationCriteriaStep(self.llm_client)
 
@@ -45,6 +45,7 @@ class AgentPipeline(BaseStep):
                 await self.send_sources(last_context, stage_callback)
                 result = await self.answer_step.execute(last_context)
                 last_context = result.context
+                return StepResult(context=last_context, stop=False)
 
             await self._emit_stage(stage_callback, "web_validating", {})
             valid_result = await self.web_validation.execute(last_context)

@@ -54,12 +54,16 @@ class SearchSummaryStep(BaseStep):
         is_success = len(batch_result.useful_site_indices) > 0
         summaries = []
         result_pages_data = ""
+        useful_by_url = {}
 
         for index in batch_result.useful_site_indices:
             if 0 <= index < len(search_results):
                 site = search_results[index]
-                summaries.append(SearchResult(site.title, site.url, ""))
-                result_pages_data += f" - Title: {site.title}, URL: {site.url}\n"
+                if site.url not in useful_by_url:
+                    useful_by_url[site.url] = SearchResult(site.title, site.url, "")
+                    result_pages_data += f" - Title: {site.title}, URL: {site.url}\n"
+
+        summaries.extend(useful_by_url.values())
 
         result_ctx = StepContext.from_context(context)
         result_ctx.search_results = summaries
