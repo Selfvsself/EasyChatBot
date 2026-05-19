@@ -10,6 +10,12 @@ from handlers.pipelines.steps.step_result import StepResult
 
 
 class SearchRagStep(BaseStep):
+    def __init__(self, llm_client, top_chunks: int=1, chunk_size: int=3000, chunk_overlap: int=500):
+        super().__init__(llm_client)
+        self.top_chunks = top_chunks
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+
     async def execute(self, context: StepContext, stage_callback=None) -> StepResult:
         if not context:
             raise ValueError("context is missing or empty")
@@ -18,7 +24,7 @@ class SearchRagStep(BaseStep):
         if not search_results:
             return StepResult(context=context, stop=False, success=False)
 
-        filtered_results = await self._maybe_apply_rag(context, search_results)
+        filtered_results = await self._maybe_apply_rag(context, search_results, self.top_chunks, self.chunk_size, self.chunk_overlap)
         result_ctx = StepContext.from_context(context)
         result_ctx.search_results = filtered_results
         return StepResult(context=result_ctx, stop=False, success=True)
@@ -26,12 +32,14 @@ class SearchRagStep(BaseStep):
     def stage(self) -> str:
         return "thinking"
 
-    async def _maybe_apply_rag(self, context: StepContext, search_results: list[SearchResult]) -> list[SearchResult]:
-        if not settings.RAG_ENABLED:
-            return search_results
-
+    async def _maybe_apply_rag(self,
+                               context: StepContext,
+                               search_results: list[SearchResult],
+                               top_chunks: int,
+                               chunk_size: int,
+                               chunk_overlap: int) -> list[SearchResult]:
         try:
-            user_query = self.get_user_query(context)
+            user_query = self.get_next_step_query(context)
             query_embedding = await self._embed_texts([user_query])
             if not query_embedding:
                 return search_results
@@ -39,7 +47,7 @@ class SearchRagStep(BaseStep):
             query_vector = query_embedding[0]
             compressed_results: list[SearchResult] = []
             for result in search_results:
-                selected_text = await self._select_best_chunks_for_result(query_vector, result)
+                selected_text = await self._select_best_chunks_for_result(query_vector, result, top_chunks, chunk_size, chunk_overlap)
                 compressed_results.append(SearchResult(result.title, result.url, selected_text))
 
             return compressed_results
@@ -47,12 +55,17 @@ class SearchRagStep(BaseStep):
             logging.warning(f"RAG prefilter failed, fallback to full text: {e}")
             return search_results
 
-    async def _select_best_chunks_for_result(self, query_vector: list[float], result: SearchResult) -> str:
-        chunks = self._split_text(result.text or "")
+    async def _select_best_chunks_for_result(self,
+                                             query_vector: list[float],
+                                             result: SearchResult,
+                                             top_chunks: int,
+                                             chunk_size: int,
+                                             chunk_overlap: int) -> str:
+        chunks = self._split_text(result.text or "", chunk_size, chunk_overlap)
         if not chunks:
             return result.text or ""
 
-        if len(chunks) <= settings.RAG_TOP_K_CHUNKS_PER_RESULT:
+        if len(chunks) <= top_chunks:
             return "\n\n".join(chunks)
 
         embeddings = await self._embed_texts(chunks)
@@ -65,16 +78,16 @@ class SearchRagStep(BaseStep):
             scored.append((similarity, idx))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        top_n = max(1, settings.RAG_TOP_K_CHUNKS_PER_RESULT)
+        top_n = max(1, top_chunks)
         selected_indices = [idx for _, idx in scored[:top_n]]
         selected_indices.sort()
         selected_chunks = [chunks[idx] for idx in selected_indices]
         return "\n\n".join(selected_chunks)
 
     @staticmethod
-    def _split_text(text: str) -> list[str]:
-        chunk_size = max(200, settings.RAG_CHUNK_SIZE)
-        overlap = max(0, min(settings.RAG_CHUNK_OVERLAP, chunk_size - 1))
+    def _split_text(text: str, size: int, chunk_overlap: int) -> list[str]:
+        chunk_size = max(200, size)
+        overlap = max(0, min(chunk_overlap, chunk_size - 1))
         step = max(1, chunk_size - overlap)
 
         normalized_text = text.strip()

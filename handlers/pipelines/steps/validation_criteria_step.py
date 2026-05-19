@@ -19,7 +19,9 @@ class ValidationCriteriaStep(BaseStep):
         history = self.get_history(context)
         user_query = self.get_user_query(context)
         internal_messages = self.get_internal_messages(context)
-        messages = self.create_messages(system_prompt, history, internal_messages, user_query)
+        validation_info = self.get_validation_condition(context)
+        user_prompt = self.user_message(user_query, validation_info, internal_messages, history)
+        messages = self.create_messages(system_prompt, [], [], user_prompt)
 
         for attempt in range(max_attempts):
             try:
@@ -54,21 +56,40 @@ class ValidationCriteriaStep(BaseStep):
 
         return StepResult(context=result_ctx, stop=False)
 
+    @staticmethod
+    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]):
+        internal_message = "None"
+        if internal_messages:
+            internal_message = "<thought>\n"
+            for idx, msg in enumerate(internal_messages):
+                internal_message += f"Step {idx + 1}:\n"
+                internal_message += msg
+                internal_message += "\n"
+            internal_message += "</thought>"
+
+        history_text = "\n".join(f"- Role: '{m["role"]}' Content: '{m["content"]}'" for m in history)
+
+        return (
+            f"Conversation history: \n<history>\n{history_text}\n</history>\n\n"
+            f"Original user intent: {user_query}\n"
+            f"Required Criteria: {required_info}\n\n"
+            f"History of thoughts: {internal_message}\n\n"
+        )
+
     def stage(self) -> str:
         return "validation_planning"
 
     def get_system_prompt(self, context: StepContext = None):
-        current_date = datetime.now().strftime("%A, %d %B %Y")
         action = self.get_action(context)
         next_step = self.get_next_step_query(context)
         if not next_step:
             next_step = self.get_user_query(context)
-        return (
+        return self.set_prompt_templates(
             "You are a Quality Assurance Specialist.\n"
             "Your task is to define a single, clear criterion for checking if a task is completed.\n\n"
             f"PLANNED ACTION: {action}\n"
             f"TARGET STEP: {next_step}\n\n"
-            f"Context: Current date is {current_date}.\n\n"
+            "Context: Current date is ${current_date}.\n\n"
             "RULES:\n"
             "1. Language: Use the same language as the TARGET STEP.\n"
             "2. Precision: The criteria must be specific to the facts or actions mentioned.\n"

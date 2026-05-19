@@ -35,37 +35,19 @@ class AgentPipeline(BaseStep):
             if next_step == StepAction.SEARCH:
                 web_result = await self.web_agent.execute(last_context, stage_callback)
                 last_context = web_result.context
+                break
             elif next_step == StepAction.CLARIFY:
-                await self._emit_stage(stage_callback, "thinking", {})
-                last_context = StepContext.from_context(last_context)
-                last_context.answer = last_context.next_step_query
+                await self._emit_stage(stage_callback, "typing", {})
+                result = await self.answer_step.execute(last_context)
+                last_context = result.context
                 return StepResult(context=last_context, stop=False)
             else:
-                await self._emit_stage(stage_callback, "thinking", {})
+                await self._emit_stage(stage_callback, "typing", {})
                 await self.send_sources(last_context, stage_callback)
                 result = await self.answer_step.execute(last_context)
                 last_context = result.context
                 return StepResult(context=last_context, stop=False)
 
-            await self._emit_stage(stage_callback, "web_validating", {})
-            valid_result = await self.web_validation.execute(last_context)
-            if valid_result.success or attempt == max_attempts - 1:
-                await self.send_sources(last_context, stage_callback)
-                return StepResult(context=last_context, stop=False)
-            else:
-                await self._emit_stage(stage_callback, "thinking", {})
-                valid_ctx = valid_result.context
-                next_action = valid_ctx.action
-                if next_action == ValidationAction.RESPOND:
-                    answer_second_result = await self.answer_step.execute(valid_ctx)
-                    answer_second_ctx = answer_second_result.context
-                    valid_second_result = await self.web_validation.execute(answer_second_ctx)
-                    if valid_second_result.success:
-                        last_context = answer_second_ctx
-                        await self.send_sources(last_context, stage_callback)
-                        return StepResult(context=last_context, stop=False)
-                else:
-                    continue
 
         await self.send_sources(last_context, stage_callback)
 

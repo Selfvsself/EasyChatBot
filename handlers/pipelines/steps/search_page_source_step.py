@@ -18,9 +18,6 @@ class SearchPageSourceStep(BaseStep):
         page_sources = []
         search_results = self.get_search_results(context)
         for web_page in search_results:
-            await self._emit_stage(stage_callback, stage="site_reading", metadata={
-                "url": web_page.url,
-                "title": web_page.title})
             page_source = await self.web_search_tool.get_page_source(web_page.to_dict())
             if page_source:
                 page_sources.append(SearchResult(page_source['title'], page_source['url'], page_source['text']))

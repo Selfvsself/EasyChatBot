@@ -1,5 +1,6 @@
 import re
 from abc import abstractmethod
+from datetime import datetime
 
 from handlers.pipelines.steps.enum.step_action import StepAction
 from handlers.pipelines.steps.step_context import StepContext
@@ -114,3 +115,12 @@ class BaseStep:
             messages.append({"role": "user", "content": user_query})
 
         return messages
+
+    @staticmethod
+    def set_prompt_templates(prompt: str) -> str:
+        CURRENT_DATE_TEMPLATE = "${current_date}"
+        current_date_value = datetime.now().strftime("%A, %d %B %Y")
+        text = prompt
+        if CURRENT_DATE_TEMPLATE in prompt:
+            text = prompt.replace(CURRENT_DATE_TEMPLATE, current_date_value)
+        return text

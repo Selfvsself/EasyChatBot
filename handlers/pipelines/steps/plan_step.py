@@ -19,8 +19,10 @@ class PlanStep(BaseStep):
         system_prompt = self.get_system_prompt(context)
         history = self.get_history(context)
         user_query = self.get_user_query(context)
+        validation_info = self.get_validation_condition(context)
         internal_messages = self.get_internal_messages(context)
-        messages = self.create_messages(system_prompt, history, internal_messages, user_query)
+        user_prompt = self.user_message(user_query, validation_info, internal_messages, history)
+        messages = self.create_messages(system_prompt, [], [], user_prompt)
 
         decision = None
         for attempt in range(max_attempts):
@@ -54,14 +56,33 @@ class PlanStep(BaseStep):
 
         return StepResult(context=result_ctx, stop=False)
 
+    @staticmethod
+    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]):
+        internal_message = "None"
+        if internal_messages:
+            internal_message = "<thought>\n"
+            for idx, msg in enumerate(internal_messages):
+                internal_message += f"Step {idx + 1}:\n"
+                internal_message += msg
+                internal_message += "\n"
+            internal_message += "</thought>"
+
+        history_text = "\n".join(f"- Role: '{m["role"]}' Content: '{m["content"]}'" for m in history)
+
+        return (
+            f"Conversation history: \n<history>\n{history_text}\n</history>\n\n"
+            f"Original user intent: {user_query}\n"
+            f"Required Criteria: {required_info}\n\n"
+            f"History of thoughts: {internal_message}\n\n"
+        )
+
     def stage(self) -> str:
         return "thinking"
 
     def get_system_prompt(self, context: StepContext = None):
-        current_date = datetime.now().strftime("%A, %d %B %Y")
-        return (
+        return self.set_prompt_templates(
             "You are a routing agent. Your ONLY job is to decide the next action for the user query.\n\n"
-            f"Context: Current date is {current_date}.\n\n"
+            "Context: Current date is ${current_date}.\n\n"
             "ACTIONS:\n"
             "1. SEARCH: Use this if the query needs fresh info, news, real-time data, or specific facts you don't know.\n"
             "2. CLARIFY: Use this if the query is too vague or ambiguous to act upon.\n"

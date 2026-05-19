@@ -22,6 +22,6 @@ class WebSearchHandler(BaseHandler):
             history=history,
             system_prompt=system_prompt
         )
-        pipeline = self.pipeline.web_search_agent()
+        pipeline = self.pipeline.main_agent()
         result = await self.orchestrator.run(pipeline, context, stage_callback)
         return result

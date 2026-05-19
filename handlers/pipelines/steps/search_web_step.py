@@ -18,7 +18,6 @@ class SearchWebStep(BaseStep):
         search_results = []
         seen_urls = set()
         search_query = self.get_next_step_query(context)
-        await self._emit_stage(stage_callback, stage="web_search_running", metadata={"query": search_query})
         web_results = await self.web_search_tool.search(search_query)
         for web_page in web_results:
             url = web_page['url']
@@ -31,4 +30,4 @@ class SearchWebStep(BaseStep):
         return StepResult(context=result_ctx, stop=False, success=is_success)
 
     def stage(self) -> str:
-        return "web_query_planning"
+        return "web_search_running"
