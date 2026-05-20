@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Переводчик</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+    <script type="module"
+            src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+
+    <style>
+        html { font-size: 14px; }
+
+        body {
+            margin: 0;
+            font-family: var(--sl-font-sans);
+            background-color: var(--sl-color-neutral-0);
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            height: calc(var(--vh, 1vh) * 100);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .app-header {
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+            padding: 10px 0;
+        }
+
+        .app-header-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: var(--sl-font-size-medium);
+            font-weight: var(--sl-font-weight-semibold);
+        }
+
+        #profile-btn {
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-text {
+            display: inline-block;
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-title-wrapper {
+            flex: 1;
+            text-align: center;
+            overflow: hidden;
+            margin-left: var(--sl-spacing-small);
+        }
+
+        #chat-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .workspace {
+            width: min(calc(100% - 24px), 760px);
+            margin: 12px auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            border: 1px solid var(--sl-color-neutral-300);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .panel-title {
+            padding: 10px;
+            border-bottom: 1px solid var(--sl-color-neutral-300);
+            font-size: 13px;
+            color: var(--sl-color-neutral-500);
+        }
+
+        .panel-body {
+            flex: 1;
+            min-height: 0;
+            padding: 10px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.45;
+        }
+
+        .input-panel-body {
+            display: flex;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .output-placeholder {
+            color: var(--sl-color-neutral-500);
+        }
+
+        textarea#source-input {
+            width: 100%;
+            height: 100%;
+            display: block;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            color: var(--sl-color-neutral-900);
+            padding: 14px;
+            font: inherit;
+            line-height: 1.45;
+            overflow-y: auto;
+            resize: none;
+            outline: none;
+        }
+        textarea#source-input::placeholder { color: var(--sl-color-neutral-500); }
+        textarea#source-input:focus {
+            box-shadow: inset 0 0 0 1px var(--sl-color-primary-500);
+        }
+
+        @media (max-width: 768px) {
+            html { font-size: 18px; }
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        sl-icon {
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="app-header">
+        <div class="app-header-inner">
+            <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
+            <div class="chat-title-wrapper"><div id="chat-title"></div></div>
+            <sl-dropdown placement="bottom-end">
+                <sl-button slot="trigger" variant="text" circle>
+                    <sl-icon name="person-circle"></sl-icon>
+                </sl-button>
+                <sl-menu>
+                    <sl-menu-item id="profile-btn">
+                        <sl-icon name="person" slot="prefix"></sl-icon>
+                        <span class="profile-text"></span>
+                    </sl-menu-item>
+                    <sl-divider></sl-divider>
+                    <sl-menu-item id="logout-btn" variant="danger">
+                        <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                        Выйти
+                    </sl-menu-item>
+                </sl-menu>
+            </sl-dropdown>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-title">Исходный текст</div>
+            <div class="panel-body input-panel-body">
+                <textarea
+                    id="source-input"
+                    placeholder="Введите текст для перевода..."
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                ></textarea>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-title">Перевод</div>
+            <div id="translated-view" class="panel-body output-placeholder">Здесь появится текущий перевод.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const LOGIN_URL = "/web/login";
+    const CHATS_URL = "/web/apps";
+    const API_APPS = "/api/apps";
+    const token = localStorage.getItem("token");
+
+    if (!token) window.location.href = LOGIN_URL;
+
+    const CURRENT_CHAT_ID = "{{ chat_id }}";
+    const CURRENT_APP_ID = "{{ app_id }}";
+    const CURRENT_APP_MODE = "{{ app_chat_mode }}";
+    const rawName = "{{ chat_name }}";
+    const CURRENT_CHAT_NAME = rawName && rawName !== "null" && rawName !== "undefined" ? rawName : "Переводчик";
+
+    document.getElementById("chat-title").innerText = CURRENT_CHAT_NAME;
+
+    const rawUserName = localStorage.getItem("username");
+    const CURRENT_USER_NAME = rawUserName && rawUserName !== "null" && rawUserName !== "undefined" ? rawUserName : "Профиль";
+    document.querySelector(".profile-text").textContent = CURRENT_USER_NAME.length > 20 ? CURRENT_USER_NAME.slice(0, 20) + "..." : CURRENT_USER_NAME;
+
+    const sourceInput = document.getElementById("source-input");
+    const translatedView = document.getElementById("translated-view");
+
+    let waitingAnswer = false;
+
+    function setPlaceholder(node, text) {
+        node.classList.add("output-placeholder");
+        node.textContent = text;
+    }
+
+    function setContent(node, text) {
+        node.classList.remove("output-placeholder");
+        node.textContent = text;
+    }
+
+    async function send() {
+        const text = sourceInput.value.trim();
+        if (!text || waitingAnswer) return;
+
+        waitingAnswer = true;
+        sourceInput.disabled = true;
+        setPlaceholder(translatedView, "Перевожу...");
+
+        try {
+            const response = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ text })
+            });
+            if (!response.ok) throw new Error("send failed");
+        } catch (_) {
+            waitingAnswer = false;
+            sourceInput.disabled = false;
+            setPlaceholder(translatedView, "Не удалось получить перевод. Попробуйте снова.");
+        }
+    }
+
+    const ws = new WebSocket(`ws://${location.host}${API_APPS}/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/ws?token=${token}`);
+    ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.event) return;
+        if (msg.chat_id !== CURRENT_CHAT_ID) return;
+
+        if (msg.role === "assistant") {
+            setContent(translatedView, msg.text || "");
+            waitingAnswer = false;
+            sourceInput.disabled = false;
+            sourceInput.focus();
+        }
+    };
+
+    ws.onerror = () => {
+        setPlaceholder(translatedView, "Ошибка соединения. Обновите страницу.");
+    };
+
+    sourceInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            send();
+        }
+    });
+
+    document.getElementById("back-btn").onclick = () => {
+        if (CURRENT_APP_MODE === "STATELESS" || CURRENT_APP_MODE === "SINGLE_CHAT" || CURRENT_APP_MODE === "SPLIT_TRANSLATOR") {
+            window.location.href = CHATS_URL;
+        } else {
+            window.location.href = CHATS_URL + `/${CURRENT_APP_ID}/chat`;
+        }
+    };
+
+    async function handleLogout() {
+        try {
+            const res = await fetch("/api/auth/logout", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("username");
+                window.location.href = LOGIN_URL;
+            }
+        } catch (_) {
+            localStorage.clear();
+            window.location.href = LOGIN_URL;
+        }
+    }
+
+    document.getElementById("logout-btn").addEventListener("click", handleLogout);
+
+    function setViewportHeight() {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
+    }
+    setViewportHeight();
+    window.addEventListener("resize", setViewportHeight);
+</script>
+</body>
+</html>
