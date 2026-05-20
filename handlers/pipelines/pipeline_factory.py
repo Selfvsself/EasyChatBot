@@ -9,6 +9,7 @@ from handlers.pipelines.steps.search_summary_step import SearchSummaryStep
 from handlers.pipelines.steps.search_web_step import SearchWebStep
 from handlers.pipelines.agent_pipeline import AgentPipeline
 from handlers.pipelines.steps.validation_criteria_step import ValidationCriteriaStep
+from handlers.pipelines.steps.search_query_step import SearchQueryStep
 
 
 class PipelineFactory:
@@ -39,7 +40,8 @@ class PipelineFactory:
     def web_step(self):
         return [
             PlanStep(self.llm_client),
-            ValidationCriteriaStep(self.llm_client)
+            ValidationCriteriaStep(self.llm_client),
+            SearchQueryStep(self.llm_client)
         ]
 
     def main_agent(self):

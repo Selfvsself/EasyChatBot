@@ -16,16 +16,15 @@ class ValidationCriteriaStep(BaseStep):
     async def _get_criteria_with_retry(self, context: StepContext) -> str:
         max_attempts = 3
         system_prompt = self.get_system_prompt(context)
-        history = self.get_history(context)
-        user_query = self.get_user_query(context)
-        internal_messages = self.get_internal_messages(context)
-        validation_info = self.get_validation_condition(context)
-        user_prompt = self.user_message(user_query, validation_info, internal_messages, history)
+        user_prompt = self.user_message(context)
+        print("ValidationCriteriaStep system_prompt:\n", system_prompt)
+        print("ValidationCriteriaStep user_prompt:\n", user_prompt)
         messages = self.create_messages(system_prompt, [], [], user_prompt)
 
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
+                print("ValidationCriteriaStep raw_response:\n", raw_response)
                 payload = json.loads(self._strip_fences(raw_response))
                 validated_data = self.CriteriaResponse.model_validate(payload)
                 return validated_data.completeness_criteria
@@ -56,44 +55,56 @@ class ValidationCriteriaStep(BaseStep):
 
         return StepResult(context=result_ctx, stop=False)
 
-    @staticmethod
-    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]):
-        internal_message = "None"
-        if internal_messages:
-            internal_message = "<thought>\n"
-            for idx, msg in enumerate(internal_messages):
-                internal_message += f"Step {idx + 1}:\n"
-                internal_message += msg
-                internal_message += "\n"
-            internal_message += "</thought>"
+    def user_message(self, context: StepContext) -> str:
+        history = self.get_history(context)
+        user_query = self.get_user_query(context)
+        validation_condition = self.get_validation_condition(context)
+        user_intent = self.get_next_step_query(context)
+        chat_memory = self.get_chat_memory(context)
+        output_data = {
+            "meta": {
+                "agent": "validation_criteria_planner"
+            },
+            "task": {
+                "user_message": user_query,
+                "required_criteria": validation_condition,
+                "normalized_intent": user_intent
+            },
+            "context": {
+                "recent_history": history,
+                "chat_memory": chat_memory
+            }
+        }
 
-        history_text = "\n".join(f"- Role: '{m["role"]}' Content: '{m["content"]}'" for m in history)
-
-        return (
-            f"Conversation history: \n<history>\n{history_text}\n</history>\n\n"
-            f"Original user intent: {user_query}\n"
-            f"Required Criteria: {required_info}\n\n"
-            f"History of thoughts: {internal_message}\n\n"
-        )
+        return json.dumps(output_data, ensure_ascii=False, indent=2)
 
     def stage(self) -> str:
         return "validation_planning"
 
     def get_system_prompt(self, context: StepContext = None):
-        action = self.get_action(context)
-        next_step = self.get_next_step_query(context)
-        if not next_step:
-            next_step = self.get_user_query(context)
         return self.set_prompt_templates(
-            "You are a Quality Assurance Specialist.\n"
-            "Your task is to define a single, clear criterion for checking if a task is completed.\n\n"
-            f"PLANNED ACTION: {action}\n"
-            f"TARGET STEP: {next_step}\n\n"
+            "You are a Quality Assurance Specialist. Your task is to define a single, clear, and objective criterion "
+            "for checking if the current task or step is successfully completed.\n\n"
             "Context: Current date is ${current_date}.\n\n"
-            "RULES:\n"
-            "1. Language: Use the same language as the TARGET STEP.\n"
-            "2. Precision: The criteria must be specific to the facts or actions mentioned.\n"
-            "3. Format: Return ONLY JSON: {\"completeness_criteria\": \"string\"}.\n"
-            "4. Content: Do not add new tasks. Only describe how to verify the current TARGET STEP.\n"
-            "5. Sources: DO NOT check for presence of sources or citations. References are handled automatically by another system."
+            "INPUT STRUCTURE:\n"
+            "You will receive a JSON containing:\n"
+            "- \"task\": Includes \"user_message\" (current text), \"required_criteria\" (constraints), and "
+            "\"normalized_intent\" (reconstructed global goal).\n"
+            "- \"context\": \"recent_history\" and \"chat_memory\".\n\n"
+            "RULES FOR CRITERIA GENERATION:\n"
+            "1. Base on Intent: Analyze \"normalized_intent\" and \"required_criteria\" to understand exactly what data "
+            "or result must be delivered to the user.\n"
+            "2. Precision & Factuality: The criteria must be specific, measurable, and directly tied to the facts, "
+            "parameters, or actions mentioned in the query and constraints.\n"
+            "3. No New Tasks: Only describe how to verify the fulfillment of the current intent. "
+            "Do not add next steps or separate sub-tasks.\n"
+            "4. Language: Write the \"completeness_criteria\" in the same language as the \"user_message\"."
+            "5. Sources: DO NOT check for the presence of sources, links, or citations. Verification of references "
+            "is completely ignored.\n\n"
+            "OUTPUT FORMAT:\n"
+            "Return ONLY a JSON object. No markdown blocks, no extra text.\n"
+            "{\n"
+            "  \"completeness_criteria\": \"Single, precise sentence describing how to verify that the intent and "
+            "constraints are fully met\"\n"
+            "}"
         )

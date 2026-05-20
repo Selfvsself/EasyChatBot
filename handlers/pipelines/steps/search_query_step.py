@@ -51,10 +51,6 @@ class SearchQueryStep(BaseStep):
         result_ctx = StepContext.from_context(context)
         result_ctx.next_step_query = plan.search_query
 
-        # internal_messages = self.get_internal_messages(context)
-        # internal_messages.append(f"SEARCH QUERY GENERATED: {plan.search_query}")
-        # result_ctx.internal_messages = internal_messages
-
         return StepResult(context=result_ctx, stop=False)
 
     @staticmethod

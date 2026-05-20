@@ -60,10 +60,19 @@ class BaseStep:
         return history
 
     @staticmethod
+    def get_chat_memory(context: StepContext = None):
+        chat_memory = []
+        if context and context.chat_memory:
+            return context.chat_memory
+        return chat_memory
+
+    @staticmethod
     def get_next_step_query(context: StepContext = None):
         if not context:
             raise ValueError("context is missing or empty")
-        next_step_query = context.next_step_query
+        next_step_query = "None"
+        if context.next_step_query:
+            next_step_query = context.next_step_query
         return next_step_query
 
     @staticmethod

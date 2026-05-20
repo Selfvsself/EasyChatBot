@@ -12,21 +12,21 @@ class PlanStep(BaseStep):
     class RouterDecision(BaseModel):
         action: StepAction
         reason: str
+        user_intent: str
 
     async def parse_decision_with_retry(self, context: StepContext) -> RouterDecision:
         max_attempts = 3
         system_prompt = self.get_system_prompt(context)
-        history = self.get_history(context)
-        user_query = self.get_user_query(context)
-        validation_info = self.get_validation_condition(context)
-        internal_messages = self.get_internal_messages(context)
-        user_prompt = self.user_message(user_query, validation_info, internal_messages, history)
+        user_prompt = self.user_message(context)
+        print("PlanStep system_prompt:\n", system_prompt)
+        print("PlanStep user_prompt:\n", user_prompt)
         messages = self.create_messages(system_prompt, [], [], user_prompt)
 
         decision = None
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
+                print("PlanStep raw_response:\n", raw_response)
                 payload = json.loads(self._strip_fences(raw_response))
                 decision = self.RouterDecision.model_validate(payload)
                 break
@@ -48,22 +48,28 @@ class PlanStep(BaseStep):
 
         result_ctx = StepContext.from_context(context)
         result_ctx.action = decision.action
+        result_ctx.next_step_query = decision.user_intent
 
         return StepResult(context=result_ctx, stop=False)
 
-    @staticmethod
-    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]) -> str:
+    def user_message(self, context: StepContext) -> str:
+        history = self.get_history(context)
+        user_query = self.get_user_query(context)
+        validation_condition = self.get_validation_condition(context)
+        user_intent = self.get_next_step_query(context)
+        chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {
                 "agent": "search_planner"
             },
             "task": {
                 "user_message": user_query,
-                "required_criteria": required_info
+                "required_criteria": validation_condition,
+                "normalized_intent": user_intent
             },
             "context": {
                 "recent_history": history,
-                "chat_memory": internal_messages
+                "chat_memory": chat_memory
             }
         }
 
@@ -79,8 +85,13 @@ class PlanStep(BaseStep):
             "Context: Current date is ${current_date}.\n\n"
             "INPUT STRUCTURE:\n"
             "You will receive a JSON containing:\n"
-            "- \"task\": The current user message and required criteria\n"
-            "- \"context\": \"recent_history\" (last messages) and \"chat_memory\" (long-term facts).\n\n"
+            "- \"task\": Includes \"user_message\" (current text), \"required_criteria\" (constraints), and "
+            "\"normalized_intent\" (reconstructed global goal).\n"
+            "- \"context\": \"recent_history\" and \"chat_memory\"."
+            "CRITICAL INSTRUCTION FOR INTENT:\n"
+            "First, determine the true \"user_intent\". If the current user message is incomplete, short, or uses "
+            "pronouns, reconstruct the full, explicit request by combining it with the \"recent_history\" and \"chat_"
+            "memory\". Always write the intent in the language of the user query as a clear, standalone command.\n\n"
             "ACTIONS:\n"
             "1. SEARCH: Use this if the \"user_intent\" requires fresh info, news, real-time data, schedules, "
             "or specific facts.\n"
@@ -90,6 +101,7 @@ class PlanStep(BaseStep):
             "OUTPUT FORMAT:\n"
             "Return ONLY a JSON object. No markdown blocks, no extra text.\n"
             "{\n"
+            "\"user_intent\": \"Explicit reconstructed user request in the language of the user query\",\n"
             "\"reason\": \"Short explanation of the choice in English\",\n"
             "\"action\": \"SEARCH\" | \"CLARIFY\" | \"RESPOND\"\n"
             "}"
