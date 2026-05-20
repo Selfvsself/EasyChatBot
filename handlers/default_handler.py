@@ -19,6 +19,7 @@ class DefaultHandler(BaseHandler):
 
         context = StepContext(
             user_input=user_query,
+            chat_memory=chat_memory,
             history=history,
             system_prompt=system_prompt
         )

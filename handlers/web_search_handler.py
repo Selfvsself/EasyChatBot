@@ -1,7 +1,7 @@
-from .pipelines.pipeline_factory import PipelineFactory
-from .pipelines.pipeline_orchestrator import PipelineOrchestrator
-from .pipelines.steps.step_context import StepContext
-from .base_handler import BaseHandler
+from handlers.pipelines.pipeline_factory import PipelineFactory
+from handlers.pipelines.pipeline_orchestrator import PipelineOrchestrator
+from handlers.pipelines.steps.step_context import StepContext
+from handlers.base_handler import BaseHandler
 
 
 class WebSearchHandler(BaseHandler):
@@ -19,6 +19,7 @@ class WebSearchHandler(BaseHandler):
 
         context = StepContext(
             user_input=user_query,
+            chat_memory=chat_memory,
             history=history,
             system_prompt=system_prompt
         )

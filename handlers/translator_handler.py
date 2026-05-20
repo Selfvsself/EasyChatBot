@@ -56,6 +56,7 @@ class TranslatorHandler(BaseHandler):
         context = StepContext(
             user_input=user_query,
             history=history,
+            chat_memory=chat_memory,
             system_prompt=system_prompt
         )
         pipeline = self.pipeline.simple_translate_pipeline()

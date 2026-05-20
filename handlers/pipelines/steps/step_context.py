@@ -25,6 +25,7 @@ class StepContext:
     def __init__(
             self,
             user_input: str,
+            chat_memory: str,
             system_prompt: str,
             history: list[dict] = None,
             internal_messages: list[str] = None,
@@ -34,6 +35,7 @@ class StepContext:
             next_step_query: str = None,
             search_results: list[SearchResult] = None):
         self.user_input = user_input
+        self.chat_memory = chat_memory
         self.history = history
         self.internal_messages = internal_messages
         self.system_prompt = system_prompt
@@ -47,6 +49,7 @@ class StepContext:
     def from_context(cls, context):
         return cls(
             user_input=context.user_input,
+            chat_memory=context.chat_memory,
             history=context.history,
             internal_messages=context.internal_messages,
             system_prompt=context.system_prompt,

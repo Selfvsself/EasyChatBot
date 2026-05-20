@@ -1,12 +1,11 @@
 import json
-from datetime import datetime
 
 from pydantic import BaseModel
 
 from handlers.pipelines.steps.base_step import BaseStep
+from handlers.pipelines.steps.enum.step_action import StepAction
 from handlers.pipelines.steps.step_context import StepContext
 from handlers.pipelines.steps.step_result import StepResult
-from handlers.pipelines.steps.enum.step_action import StepAction
 
 
 class PlanStep(BaseStep):
@@ -47,50 +46,51 @@ class PlanStep(BaseStep):
 
         decision = await self.parse_decision_with_retry(context)
 
-        internal_messages = self.get_internal_messages(context)
-        internal_messages.append(f"ROUTER DECISION: {decision.action} (Reason: {decision.reason})")
-
         result_ctx = StepContext.from_context(context)
         result_ctx.action = decision.action
-        result_ctx.internal_messages = internal_messages
 
         return StepResult(context=result_ctx, stop=False)
 
     @staticmethod
-    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]):
-        internal_message = "None"
-        if internal_messages:
-            internal_message = "<thought>\n"
-            for idx, msg in enumerate(internal_messages):
-                internal_message += f"Step {idx + 1}:\n"
-                internal_message += msg
-                internal_message += "\n"
-            internal_message += "</thought>"
+    def user_message(user_query: str, required_info: str, internal_messages: list[str], history: list[dict]) -> str:
+        output_data = {
+            "meta": {
+                "agent": "search_planner"
+            },
+            "task": {
+                "user_message": user_query,
+                "required_criteria": required_info
+            },
+            "context": {
+                "recent_history": history,
+                "chat_memory": internal_messages
+            }
+        }
 
-        history_text = "\n".join(f"- Role: '{m["role"]}' Content: '{m["content"]}'" for m in history)
-
-        return (
-            f"Conversation history: \n<history>\n{history_text}\n</history>\n\n"
-            f"Original user intent: {user_query}\n"
-            f"Required Criteria: {required_info}\n\n"
-            f"History of thoughts: {internal_message}\n\n"
-        )
+        return json.dumps(output_data, ensure_ascii=False, indent=2)
 
     def stage(self) -> str:
         return "thinking"
 
     def get_system_prompt(self, context: StepContext = None):
         return self.set_prompt_templates(
-            "You are a routing agent. Your ONLY job is to decide the next action for the user query.\n\n"
+            "You are a routing agent. Your ONLY job is to analyze the input data and decide the next action for the "
+            "user query, considering the chat history and memory.\n\n"
             "Context: Current date is ${current_date}.\n\n"
+            "INPUT STRUCTURE:\n"
+            "You will receive a JSON containing:\n"
+            "- \"task\": The current user message and required criteria\n"
+            "- \"context\": \"recent_history\" (last messages) and \"chat_memory\" (long-term facts).\n\n"
             "ACTIONS:\n"
-            "1. SEARCH: Use this if the query needs fresh info, news, real-time data, or specific facts you don't know.\n"
-            "2. CLARIFY: Use this if the query is too vague or ambiguous to act upon.\n"
-            "3. RESPOND: Use this if you can answer immediately (general knowledge, creative writing, code, math).\n\n"
+            "1. SEARCH: Use this if the \"user_intent\" requires fresh info, news, real-time data, schedules, "
+            "or specific facts.\n"
+            "2. CLARIFY: Use this ONLY if both the message and the context are too vague to understand the user's goal.\n"
+            "3. RESPOND: Use this if the \"user_intent\" can be answered immediately using general knowledge, "
+            "logic, code, or existing context.\n"
             "OUTPUT FORMAT:\n"
-            "Return ONLY a JSON object:\n"
+            "Return ONLY a JSON object. No markdown blocks, no extra text.\n"
             "{\n"
-            "  \"reason\": \"short explanation in English\",\n"
-            "  \"action\": \"SEARCH\" | \"CLARIFY\" | \"RESPOND\"\n"
+            "\"reason\": \"Short explanation of the choice in English\",\n"
+            "\"action\": \"SEARCH\" | \"CLARIFY\" | \"RESPOND\"\n"
             "}"
         )
