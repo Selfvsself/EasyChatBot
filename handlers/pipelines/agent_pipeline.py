@@ -41,8 +41,6 @@ class AgentPipeline(BaseStep):
                 last_context = result.context
                 return StepResult(context=last_context, stop=False)
             else:
-                valid_criteria = await self.validation_criteria.execute(last_context)
-                last_context = valid_criteria.context
                 await self._emit_stage(stage_callback, "typing", {})
                 result = await self.answer_step.execute(last_context)
                 last_context = result.context

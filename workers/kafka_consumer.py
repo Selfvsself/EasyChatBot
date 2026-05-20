@@ -45,6 +45,14 @@ async def consume_and_dispatch(kafka, manager, db_factory):
                     role=role,
                     text=text
                 )
+                chat_repo.touch(chat_id=chat_id)
+
+                # Автоназвание для нового чата: первое непустое сообщение пользователя.
+                if role == "user" and not (chat.title or "").strip():
+                    compact_text = " ".join(str(text or "").split())
+                    if compact_text:
+                        auto_title = compact_text[:80]
+                        chat_repo.update_title(chat_id=chat_id, title=auto_title)
 
                 await manager.send_to_user(chat_id, data)
                 logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)

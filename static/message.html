@@ -39,12 +39,15 @@
             font-weight: 600;
         }
         .app-header {
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+            padding: 10px 0;
+        }
+        .app-header-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
             display: flex;
             align-items: center;
             gap: 8px;
-
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--sl-color-neutral-200);
 
             font-size: var(--sl-font-size-medium);
             font-weight: var(--sl-font-weight-semibold);
@@ -79,6 +82,8 @@
         /* ===== ЧАТ ===== */
         .chat {
             flex: 1;
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
             overflow-y: auto;
             overflow-x: hidden;
             padding: 12px 0;
@@ -190,12 +195,22 @@
         }
 
         .message.user {
-            align-self: flex-end;
+            align-self: center;
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .message.user .user-bubble {
+            margin-left: auto;
+            max-width: 72%;
+            padding: 10px 12px;
+            border-radius: 12px;
             background-color: #303030;
             color: #f5f5f5;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            max-width: min(72%, 760px);
-            margin-right: clamp(12px, 4vw, 120px);
         }
 
         .message.assistant {
@@ -204,12 +219,12 @@
             max-width: 100%;
             background: transparent;
             border-radius: 0;
-            padding: 8px clamp(12px, 4vw, 120px);
+            padding: 8px 0;
             box-sizing: border-box;
         }
 
         .message.assistant > * {
-            max-width: 760px;
+            max-width: 100%;
             margin-left: auto;
             margin-right: auto;
         }
@@ -373,30 +388,32 @@
 <body>
 <div class="container">
     <div class="app-header">
-        <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
+        <div class="app-header-inner">
+            <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
 
-        <div class="chat-title-wrapper">
-            <div id="chat-title"></div>
-        </div>
+            <div class="chat-title-wrapper">
+                <div id="chat-title"></div>
+            </div>
 
-        <sl-dropdown placement="bottom-end">
-            <sl-button slot="trigger" variant="text" circle>
-                <sl-icon name="person-circle"></sl-icon>
-            </sl-button>
+            <sl-dropdown placement="bottom-end">
+                <sl-button slot="trigger" variant="text" circle>
+                    <sl-icon name="person-circle"></sl-icon>
+                </sl-button>
 
-            <sl-menu>
-            <sl-menu-item id="profile-btn">
-                <sl-icon name="person" slot="prefix"></sl-icon>
-                <span class="profile-text"></span>
-            </sl-menu-item>
-
-            <sl-divider></sl-divider>
-                <sl-menu-item id="logout-btn" variant="danger">
-                    <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
-                    Выйти
+                <sl-menu>
+                <sl-menu-item id="profile-btn">
+                    <sl-icon name="person" slot="prefix"></sl-icon>
+                    <span class="profile-text"></span>
                 </sl-menu-item>
-            </sl-menu>
-        </sl-dropdown>
+
+                <sl-divider></sl-divider>
+                    <sl-menu-item id="logout-btn" variant="danger">
+                        <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                        Выйти
+                    </sl-menu-item>
+                </sl-menu>
+            </sl-dropdown>
+        </div>
     </div>
 
     <div id="chat" class="chat"></div>
@@ -843,7 +860,11 @@
     function addMessage(role, text) {
         const div = document.createElement("div");
         div.className = `message ${role}`;
-        div.innerHTML = renderMarkdown(text);
+        if (role === "user") {
+            div.innerHTML = `<div class="user-bubble">${renderMarkdown(text)}</div>`;
+        } else {
+            div.innerHTML = renderMarkdown(text);
+        }
 
         chat.appendChild(div);
 
@@ -862,6 +883,7 @@
 
     function parseInline(text) {
         return text
+            .replace(/&lt;\s*\/?\s*br\s*\/?\s*&gt;/gi, "<br>")
             .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
             .replace(/`([^`]+)`/g, "<code>$1</code>")
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -1035,8 +1057,11 @@
 
     sendBtn.addEventListener("click", send);
 
-    input.addEventListener("sl-keydown", (event) => {
-        if (event.key === "Enter") send();
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            send();
+        }
     });
     document.getElementById("back-btn").onclick = () => {
     if (typeof CURRENT_APP_MODE !== 'undefined' && (CURRENT_APP_MODE === 'STATELESS') || (CURRENT_APP_MODE === 'SINGLE_CHAT')) {

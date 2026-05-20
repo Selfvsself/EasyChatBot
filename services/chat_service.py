@@ -6,7 +6,7 @@ class ChatService:
     def __init__(self, chat_repo):
         self.chat_repo = chat_repo
 
-    def create_chat(self, app_id, user_id: uuid, title: str):
+    def create_chat(self, app_id, user_id: uuid, title: str | None = None):
         chat = self.chat_repo.create_chat(
             user_id=user_id,
             app_id=app_id,

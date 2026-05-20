@@ -18,14 +18,19 @@
             background-color: var(--sl-color-neutral-0);
             display: flex;
             justify-content: center;
+            overflow: hidden;
         }
         .app-header {
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+            padding: 10px 0;
+        }
+
+        .app-header-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
             display: flex;
             align-items: center;
             gap: 8px;
-
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--sl-color-neutral-200);
 
             font-size: var(--sl-font-size-medium);
             font-weight: var(--sl-font-weight-semibold);
@@ -44,12 +49,16 @@
         }
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .header-section {
+            width: min(calc(100% - 24px), 760px);
+            margin: var(--sl-spacing-small) auto;
             display: flex;
             gap: var(--sl-spacing-small);
-            margin: var(--sl-spacing-small);
         }
 
         #profile-btn {
@@ -67,10 +76,15 @@
             text-overflow: ellipsis;
         }
         .chat-list {
+            width: min(calc(100% - 24px), 760px);
+            margin: var(--sl-spacing-medium) auto;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            margin: var(--sl-spacing-medium);
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding-bottom: var(--sl-spacing-medium);
         }
         .chat-item {
             display: flex;
@@ -139,32 +153,34 @@
 <body>
 <div class="container">
     <div class="app-header">
-        <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
+        <div class="app-header-inner">
+            <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
 
-        <div class="header-title-wrapper">
-            <div id="header-title">Мои диалоги</div>
-        </div>
-        <sl-dropdown placement="bottom-end">
-            <sl-button slot="trigger" variant="text" circle>
-                <sl-icon name="person-circle"></sl-icon>
-            </sl-button>
+            <div class="header-title-wrapper">
+                <div id="header-title">Мои диалоги</div>
+            </div>
+            <sl-dropdown placement="bottom-end">
+                <sl-button slot="trigger" variant="text" circle>
+                    <sl-icon name="person-circle"></sl-icon>
+                </sl-button>
 
-            <sl-menu>
-            <sl-menu-item id="profile-btn">
-                <sl-icon name="person" slot="prefix"></sl-icon>
-                <span class="profile-text"></span>
-            </sl-menu-item>
-
-            <sl-divider></sl-divider>
-                <sl-menu-item id="logout-btn" variant="danger">
-                    <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
-                    Выйти
+                <sl-menu>
+                <sl-menu-item id="profile-btn">
+                    <sl-icon name="person" slot="prefix"></sl-icon>
+                    <span class="profile-text"></span>
                 </sl-menu-item>
-            </sl-menu>
-        </sl-dropdown>
+
+                <sl-divider></sl-divider>
+                    <sl-menu-item id="logout-btn" variant="danger">
+                        <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                        Выйти
+                    </sl-menu-item>
+                </sl-menu>
+            </sl-dropdown>
+        </div>
     </div>
     <div class="header-section">
-        <sl-input id="input" placeholder="Название нового чата..." clearable style="flex-grow: 1;">
+        <sl-input id="input" placeholder="Название нового чата (необязательно)..." clearable style="flex-grow: 1;">
             <sl-icon name="chat-dots" slot="prefix"></sl-icon>
         </sl-input>
         <sl-button variant="success" id="create-btn">
@@ -248,7 +264,6 @@
 
     async function createChat() {
         const text = inputField.value.trim();
-        if (!text) return;
 
         createBtn.loading = true;
         try {
@@ -258,7 +273,7 @@
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ title: text })
+                body: JSON.stringify({ title: text || null })
             });
             if (!res.ok) throw new Error('Ошибка создания');
 
