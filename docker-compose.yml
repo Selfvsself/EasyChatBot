@@ -1,0 +1,9 @@
+services:
+  easychatbot:
+    build: .
+    container_name: easychatbot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-8000}:8000"
