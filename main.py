@@ -3,7 +3,8 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -63,6 +64,13 @@ app.include_router(apps_router, prefix="/api/apps")
 app.include_router(chat_router, prefix="/api/apps")
 app.include_router(msg_router, prefix="/api/apps")
 app.include_router(auth_router, prefix="/api/auth")
+
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 401 and request.url.path.startswith("/web/"):
+        return RedirectResponse(url="/web/login")
+    return await http_exception_handler(request, exc)
 
 
 @app.get("/")
