@@ -13,6 +13,7 @@ class ApplicationService:
 
         visible_apps = self.apps_repo.get_all_visible()
 
-        return [app for app in visible_apps if app.id in user_app_ids]
+        user_visible_apps = [app for app in visible_apps if app.id in user_app_ids]
+        return sorted(user_visible_apps, key=lambda app: (app.name or "").lower())
 
 

@@ -22,6 +22,27 @@ class Settings(BaseSettings):
     # LLM
     LLM_URL: str = "localhost:11434"
     LLM_MODEL: str = "gpt"
+    RAG_EMBEDDING_URL: str = "localhost:11434/api/embed"
+    RAG_EMBEDDING_MODEL: str = "qwen3-embedding:0.6b"
+
+    # Chat memory
+    CHAT_MAX_ACTIVE_MESSAGES: int = 10
+    CHAT_ARCHIVE_BATCH_SIZE: int = 5
+    CHAT_MEMORY_MAX_CHARS: int = 5000
+
+    # Jira
+    JIRA_BASE_URL: str = ""
+    JIRA_EMAIL: str = ""
+    JIRA_API_TOKEN: str = ""
+    JIRA_PAT: str = ""
+    JIRA_PROJECT_KEY: str = ""
+
+    # Confluence
+    CONFLUENCE_BASE_URL: str = ""
+    CONFLUENCE_EMAIL: str = ""
+    CONFLUENCE_API_TOKEN: str = ""
+    CONFLUENCE_PAT: str = ""
+    CONFLUENCE_SPACE_KEY: str = ""
 
     class Config:
         env_file = ".env",

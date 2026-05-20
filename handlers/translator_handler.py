@@ -1,66 +1,71 @@
 import json
 import re
 
+from pydantic import BaseModel, ValidationError, field_validator
+
+from .pipelines.pipeline_factory import PipelineFactory
+from .pipelines.pipeline_orchestrator import PipelineOrchestrator
+from .pipelines.steps.step_context import StepContext
 from .base_handler import BaseHandler
 
 
 class TranslatorHandler(BaseHandler):
-    CONTEXT_EXTRACTOR_SYSTEM = """Role:
-    You are a Context Analysis Assistant. Your goal is to extract key facts and background information from a conversation history to help a translator provide a more accurate and context-aware translation of the user's latest message.
-    Input:
-    Conversation History: A list of previous messages.
-    Current Message: The text the user wants to translate right now.
-    Instructions:
-    Identify Entities: Extract names of people, project titles, specific tools, or software mentioned in the history that appear relevant to the current message.
-    Determine Relationships: Identify who the user is talking to (e.g., a manager, a subordinate, a client) to help set the right level of formality.
-    Summarize Topics: Briefly state the main subject of the ongoing discussion (e.g., "Discussing the UI bug in the login screen").
-    Be Concise: Provide only the facts. Do not add interpretations or conversational filler.
-    Relevance Filter: If the history contains no information relevant to the current message, return an empty summary or "No relevant context found."
-    Output Format:
-    A short, bulleted list of facts in English.
-    Example Output:
-    Project: "Lunar Alpha" API integration.
-    Colleague: Sarah (Frontend Lead).
-    Current status: Delay in backend response.
-    Tone: Explaining a technical issue to a peer.
-    """
+    MAX_ITERATIONS = 2
 
-    def parse_llm_response(self, raw_response):
-        """
-        Парсит JSON из ответа LLM и возвращает словарь с полями.
-        """
+    class TranslationPayload(BaseModel):
+        context_notes: str | None = None
+        translation: str = ""
+        detected_language_code: str = "unknown"
+
+        @field_validator("translation", mode="before")
+        @classmethod
+        def serialize_json_to_string(cls, v):
+            if isinstance(v, (dict, list)):
+                return json.dumps(v, ensure_ascii=False)
+            return str(v)
+
+    def __init__(self, llm_client, message_repo):
+        super().__init__(llm_client, message_repo)
+        self.pipeline = PipelineFactory(llm_client=llm_client)
+        self.orchestrator = PipelineOrchestrator()
+
+    @classmethod
+    def _extract_translation(cls, raw_response: str) -> str:
+        raw_text = (raw_response or "").strip()
+        if not raw_text:
+            return ""
+
+        clean_json = re.sub(r"```(?:json)?\n?|```", "", raw_text).strip()
         try:
-            clean_json = re.sub(r'```(?:json)?\n?|```', '', raw_response).strip()
+            payload = json.loads(clean_json)
+            parsed = cls.TranslationPayload.model_validate(payload)
+            return parsed.translation.strip()
+        except (json.JSONDecodeError, ValidationError, TypeError):
+            return raw_text
 
-            data = json.loads(clean_json)
+    @staticmethod
+    def _build_messages_block(messages):
+        lines = []
+        for message in messages:
+            role = getattr(message, "role", "user")
+            if role == "system":
+                continue
+            text = str(getattr(message, "text", "")).strip().replace("\n", " ")
+            if text:
+                lines.append(f"{role}: {text}")
+        return "\n".join(lines)
 
-            translation = data.get("translation", "")
-            lang_code = data.get("detected_language_code", "unknown")
-            context_notes = data.get("context_notes", None)
+    async def handle(self, user_query, context, tools, stage_callback=None):
+        history = []
+        chat_memory = "None"
+        system_prompt = self.prepare_system_prompt(context, chat_memory)
 
-            return {
-                "translation": translation,
-                "lang": lang_code,
-                "notes": context_notes
-            }
-
-        except json.JSONDecodeError as e:
-            print(f"Ошибка парсинга JSON: {e}")
-            return None
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-            return None
-
-    async def handle(self, chat, app, text):
-        history = self.message_repo.get_by_chat(chat.id, limit=20)
-        facts_prompt = self.build_prompt(self.CONTEXT_EXTRACTOR_SYSTEM, list(reversed(history)), text=text)
-        extracted_facts = await self.llm.chat(facts_prompt)
-
-        system_prompt = app.system_prompt.replace("[INSERT_PREVIOUS_FACTS_HERE]", extracted_facts)
-        self.build_prompt(self.CONTEXT_EXTRACTOR_SYSTEM, list(reversed(history)), text=text)
-        final_prompt = self.build_prompt(system_prompt, [], text=text)
-
-        raw_answer = await self.llm.chat(final_prompt)
-
-        result = self.parse_llm_response(raw_answer)
-        return result.get("translation")
+        context = StepContext(
+            user_input=user_query,
+            history=history,
+            chat_memory=chat_memory,
+            system_prompt=system_prompt
+        )
+        pipeline = self.pipeline.simple_translate_pipeline()
+        result = await self.orchestrator.run(pipeline, context, stage_callback)
+        return self._extract_translation(result)

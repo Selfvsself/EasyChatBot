@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="sl-theme-dark">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +10,10 @@
             src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
 
     <style>
+        html {
+            font-size: 14px;
+        }
+
         body {
             margin: 0;
             font-family: var(--sl-font-sans);
@@ -21,10 +25,11 @@
 
         .container {
             width: 100%;
-            max-width: 700px;
+            max-width: 1200px;
             height: calc(var(--vh, 1vh) * 100);
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
         }
 
         /* ===== HEADER ===== */
@@ -34,12 +39,15 @@
             font-weight: 600;
         }
         .app-header {
+            border-bottom: 1px solid var(--sl-color-neutral-200);
+            padding: 10px 0;
+        }
+        .app-header-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
             display: flex;
             align-items: center;
             gap: 8px;
-
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--sl-color-neutral-200);
 
             font-size: var(--sl-font-size-medium);
             font-weight: var(--sl-font-weight-semibold);
@@ -74,12 +82,15 @@
         /* ===== ЧАТ ===== */
         .chat {
             flex: 1;
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
             overflow-y: auto;
-            padding: 16px;
+            overflow-x: hidden;
+            padding: 12px 0;
             display: flex;
             overflow-y: auto;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         /* ===== СООБЩЕНИЕ ===== */
@@ -92,27 +103,256 @@
             word-wrap: break-word;
         }
 
+        .message p {
+            margin: 0 0 8px 0;
+        }
+
+        .message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message h1,
+        .message h2,
+        .message h3 {
+            margin: 10px 0 8px 0;
+            line-height: 1.25;
+        }
+
+        .message h1 { font-size: 1.2rem; }
+        .message h2 { font-size: 1.1rem; }
+        .message h3 { font-size: 1rem; }
+
+        .message blockquote {
+            margin: 8px 0;
+            padding: 6px 10px;
+            border-left: 3px solid var(--sl-color-primary-500);
+            background-color: rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+        }
+
+        .message pre {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            background-color: rgba(0, 0, 0, 0.25);
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .message code {
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 0.92em;
+            padding: 1px 4px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.18);
+        }
+
+        .message pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message hr {
+            border: 0;
+            border-top: 1px solid var(--sl-color-neutral-400);
+            margin: 10px 0;
+        }
+
+        .message .table-wrap {
+            margin: 10px 0;
+            overflow-x: auto;
+            border: 1px solid var(--sl-color-neutral-300);
+            border-radius: 8px;
+        }
+
+        .message table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 560px;
+        }
+
+        .message th,
+        .message td {
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid var(--sl-color-neutral-300);
+            line-height: 1.4;
+        }
+
+        .message th {
+            font-weight: 600;
+            background-color: rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .message tbody tr:last-child td {
+            border-bottom: none;
+        }
+
         .message.user {
-            align-self: flex-end;
-            background-color: var(--sl-color-primary-600);
-            color: white;
+            align-self: center;
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .message.user .user-bubble {
+            margin-left: auto;
+            max-width: 72%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background-color: #303030;
+            color: #f5f5f5;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .message.assistant {
-            align-self: flex-start;
-            background-color: var(--sl-color-neutral-200);
+            align-self: stretch;
+            width: 100%;
+            max-width: 100%;
+            background: transparent;
+            border-radius: 0;
+            padding: 8px 0;
+            box-sizing: border-box;
+        }
+
+        .message.assistant > * {
+            max-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .sources-card {
+            margin-top: 8px;
+            border: 1px solid var(--sl-color-neutral-300);
+            border-radius: 10px;
+            padding: 8px 10px;
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .sources-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--sl-color-neutral-500);
+            margin-bottom: 6px;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .source-link {
+            color: var(--sl-color-primary-500);
+            text-decoration: none;
+            font-size: 13px;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .source-link:hover {
+            text-decoration: underline;
         }
 
         /* ===== INPUT ===== */
         .input-area {
-            display: flex;
-            gap: 8px;
-            padding: 10px;
-            border-top: 1px solid var(--sl-color-neutral-200);
-            padding-bottom: env(safe-area-inset-bottom);
+            padding: 10px 0;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom));
         }
 
-        sl-input {
+        .input-area::before {
+            content: "";
+            display: block;
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto 10px auto;
+            border-top: 1px solid var(--sl-color-neutral-200);
+        }
+
+        .input-inner {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .bot-status {
+            width: min(calc(100% - 24px), 760px);
+            margin: 0 auto 8px auto;
+            display: none;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            color: var(--sl-color-neutral-600);
+            font-size: 13px;
+        }
+
+        .bot-status.active {
+            display: flex;
+        }
+
+        .bot-status-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bot-status-query {
+            display: none;
+            color: var(--sl-color-neutral-500);
+            font-size: 12px;
+            line-height: 1.3;
+            max-width: 100%;
+            word-break: break-word;
+        }
+
+        .bot-status-query.active {
+            display: block;
+        }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .typing-dots span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--sl-color-neutral-500);
+            opacity: 0.35;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 80%, 100% {
+                opacity: 0.35;
+                transform: scale(1);
+            }
+            40% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        sl-textarea#input {
             flex: 1;
         }
 
@@ -121,43 +361,72 @@
             overflow-y: auto;
         }
 
-        .input-area {
-            align-items: flex-end;
+        @media (max-width: 768px) {
+            html {
+                font-size: 18px;
+            }
+            .message h1 { font-size: 1.4rem; }
+            .message h2 { font-size: 1.3rem; }
+            .message h3 { font-size: 1.2rem; }
+
+            .message pre {
+                font-size: 14px;
+            }
+
+            .message code {
+                font-size: 1.0em;
+            }
         }
+
+        sl-icon {
+            flex-shrink: 0;
+            font-size: 18px; /* фиксируем нормальный размер */
+        }
+
     </style>
 </head>
 <body>
 <div class="container">
     <div class="app-header">
-        <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
+        <div class="app-header-inner">
+            <sl-icon name="arrow-left" id="back-btn" style="cursor: pointer;"></sl-icon>
 
-        <div class="chat-title-wrapper">
-            <div id="chat-title"></div>
-        </div>
+            <div class="chat-title-wrapper">
+                <div id="chat-title"></div>
+            </div>
 
-        <sl-dropdown placement="bottom-end">
-            <sl-button slot="trigger" variant="text" circle>
-                <sl-icon name="person-circle"></sl-icon>
-            </sl-button>
+            <sl-dropdown placement="bottom-end">
+                <sl-button slot="trigger" variant="text" circle>
+                    <sl-icon name="person-circle"></sl-icon>
+                </sl-button>
 
-            <sl-menu>
-            <sl-menu-item id="profile-btn">
-                <sl-icon name="person" slot="prefix"></sl-icon>
-                <span class="profile-text"></span>
-            </sl-menu-item>
-
-            <sl-divider></sl-divider>
-                <sl-menu-item id="logout-btn" variant="danger">
-                    <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
-                    Выйти
+                <sl-menu>
+                <sl-menu-item id="profile-btn">
+                    <sl-icon name="person" slot="prefix"></sl-icon>
+                    <span class="profile-text"></span>
                 </sl-menu-item>
-            </sl-menu>
-        </sl-dropdown>
+
+                <sl-divider></sl-divider>
+                    <sl-menu-item id="logout-btn" variant="danger">
+                        <sl-icon name="box-arrow-right" slot="prefix"></sl-icon>
+                        Выйти
+                    </sl-menu-item>
+                </sl-menu>
+            </sl-dropdown>
+        </div>
     </div>
 
     <div id="chat" class="chat"></div>
 
     <div class="input-area">
+        <div id="bot-status" class="bot-status" aria-live="polite">
+            <div class="bot-status-main">
+                <span id="bot-status-text">Бот думает</span>
+                <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            </div>
+            <div id="bot-status-query" class="bot-status-query"></div>
+        </div>
+        <div class="input-inner">
         <sl-textarea
             id="input"
             placeholder="Напишите сообщение..."
@@ -170,6 +439,7 @@
             spellcheck="false"
         ></sl-textarea>
         <sl-button variant="primary" id="send-btn">Отправить</sl-button>
+        </div>
     </div>
 </div>
 
@@ -185,6 +455,7 @@
 
     const CURRENT_CHAT_ID = "{{ chat_id }}";
     const CURRENT_APP_ID = "{{ app_id }}";
+    const CURRENT_APP_CODE = "{{ app_code }}";
     const CURRENT_APP_MODE = "{{ app_chat_mode }}";
     const rawName = "{{ chat_name }}";
 
@@ -215,15 +486,341 @@
     const chat = document.getElementById("chat");
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("send-btn");
+    const botStatus = document.getElementById("bot-status");
+    const botStatusText = document.getElementById("bot-status-text");
+    const botStatusQuery = document.getElementById("bot-status-query");
+
+    const STATUS_MAP = {
+        thinking: { text: "Думаю", icon: "cpu" },
+        searching: { text: "Ищу в интернете", icon: "globe2" },
+        web_planning: { text: "Формирую web-запрос", icon: "cpu" },
+        web_running: { text: "Выполняю web-поиск", icon: "search" },
+        web_validating: { text: "Проверяю ответ", icon: "shield-check" },
+        jira: { text: "Ищу в Jira", icon: "kanban" },
+        jira_planning: { text: "Формирую JQL", icon: "cpu" },
+        jira_running: { text: "Выполняю JQL", icon: "search" },
+        jira_opening: { text: "Открываю тикет", icon: "folder2-open" },
+        jira_validating: { text: "Проверяю ответ", icon: "shield-check" },
+        confluence_planning: { text: "Формирую CQL", icon: "cpu" },
+        confluence_running: { text: "Выполняю CQL", icon: "search" },
+        confluence_opening: { text: "Открываю страницу", icon: "file-earmark-text" },
+        confluence_validating: { text: "Проверяю ответ", icon: "shield-check" },
+        agent_validating: { text: "Проверяю ответ", icon: "shield-check" },
+        agent_replanning: { text: "Уточняю стратегию", icon: "arrow-repeat" },
+        reading: { text: "Читаю сайт", icon: "book" },
+        site_thinking: { text: "Думаю", icon: "book" },
+        tooling: { text: "Выполняю инструмент", icon: "tools" },
+        typing: { text: "Печатаю", icon: "keyboard" }
+    };
+
+    let assistantPending = false;
+    let pendingSources = [];
+
+    function setBotStatus(state) {
+        const config = STATUS_MAP[state];
+        if (!config) return;
+
+        botStatusText.textContent = config.text;
+        botStatus.classList.add("active");
+    }
+
+    function clearBotStatus() {
+        assistantPending = false;
+        botStatus.classList.remove("active");
+        botStatusQuery.textContent = "";
+        botStatusQuery.classList.remove("active");
+    }
+
+    function getHostname(url) {
+        try {
+            return new URL(url).hostname;
+        } catch (_) {
+            return url || "";
+        }
+    }
+
+    function appendSourcesCard(sources) {
+        if (!Array.isArray(sources) || sources.length === 0) return;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "message assistant";
+
+        const card = document.createElement("div");
+        card.className = "sources-card";
+
+        const title = document.createElement("div");
+        title.className = "sources-title";
+        title.textContent = "Источники ответа";
+        card.appendChild(title);
+
+        const list = document.createElement("div");
+        list.className = "sources-list";
+
+        sources.forEach((src) => {
+            const a = document.createElement("a");
+            a.className = "source-link";
+            a.href = src.url;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            const host = getHostname(src.url);
+            const label = src.title ? `${src.title} (${host})` : host;
+            a.textContent = label;
+            list.appendChild(a);
+        });
+
+        card.appendChild(list);
+        wrapper.appendChild(card);
+        chat.appendChild(wrapper);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function startAssistantStatusFlow() {
+        assistantPending = true;
+        setBotStatus("thinking");
+    }
+
+    function applyAgentStage(msg) {
+        if (!assistantPending) {
+            assistantPending = true;
+        }
+
+        const stage = msg.stage;
+        if (stage === "thinking") {
+            setBotStatus("thinking");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "typing") {
+            setBotStatus("typing");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "tool_running") {
+            const toolName = (msg.metadata?.tool || "").toLowerCase();
+            if (toolName === "web_search") {
+                setBotStatus("searching");
+                const q = (msg.metadata?.query || "").trim();
+                if (q) {
+                    botStatusQuery.textContent = `${q}`;
+                    botStatusQuery.classList.add("active");
+                }
+                return;
+            }
+            if (toolName === "jira_search") {
+                setBotStatus("jira");
+                const q = (msg.metadata?.query || "").trim();
+                if (q) {
+                    botStatusQuery.textContent = `${q}`;
+                    botStatusQuery.classList.add("active");
+                }
+                return;
+            }
+            setBotStatus("tooling");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "site_reading") {
+            setBotStatus("reading");
+            const siteUrl = (msg.metadata?.url || "").trim();
+            const host = getHostname(siteUrl);
+            if (host) {
+                botStatusQuery.textContent = `${host}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "site_thinking") {
+            setBotStatus("site_thinking");
+            const siteUrl = (msg.metadata?.url || "").trim();
+            const host = getHostname(siteUrl);
+            if (host) {
+                botStatusQuery.textContent = `${host}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "sources_used") {
+            const sources = msg.metadata?.sources;
+            if (Array.isArray(sources) && sources.length) {
+                pendingSources = sources;
+            }
+            return;
+        }
+
+        if (stage === "web_query_planning") {
+            setBotStatus("web_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "web_search_running") {
+            setBotStatus("web_running");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "web_validating") {
+            setBotStatus("web_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "jira_query_planning") {
+            setBotStatus("jira_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_query_running") {
+            setBotStatus("jira_running");
+            const jql = (msg.metadata?.jql || "").trim();
+            if (jql) {
+                botStatusQuery.textContent = `${jql}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_ticket_opening") {
+            setBotStatus("jira_opening");
+            const key = (msg.metadata?.key || "").trim();
+            if (key) {
+                botStatusQuery.textContent = `${key}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "jira_validating") {
+            setBotStatus("jira_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "confluence_query_planning") {
+            setBotStatus("confluence_planning");
+            const q = (msg.metadata?.query || "").trim();
+            if (q) {
+                botStatusQuery.textContent = `${q}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_query_running") {
+            setBotStatus("confluence_running");
+            const cql = (msg.metadata?.cql || "").trim();
+            if (cql) {
+                botStatusQuery.textContent = `${cql}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_page_opening") {
+            setBotStatus("confluence_opening");
+            const title = (msg.metadata?.title || "").trim();
+            if (title) {
+                botStatusQuery.textContent = `${title}`;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+
+        if (stage === "confluence_validating") {
+            setBotStatus("confluence_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "agent_validating") {
+            setBotStatus("agent_validating");
+            botStatusQuery.textContent = "";
+            botStatusQuery.classList.remove("active");
+            return;
+        }
+
+        if (stage === "agent_replanning") {
+            setBotStatus("agent_replanning");
+            const fb = (msg.metadata?.feedback || "").trim();
+            if (fb) {
+                botStatusQuery.textContent = fb;
+                botStatusQuery.classList.add("active");
+            }
+            return;
+        }
+    }
 
     const ws = new WebSocket(`ws://${location.host}${API_APPS}/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/ws?token=${token}`);
 
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        if (msg.event === "agent_stage") {
+            applyAgentStage(msg);
+            return;
+        }
+
         addMessage(msg.role, msg.text);
+
+        if (msg.role === "assistant") {
+            if (pendingSources.length) {
+                appendSourcesCard(pendingSources);
+                pendingSources = [];
+            }
+            clearBotStatus();
+        }
+    };
+
+    ws.onerror = () => {
+        clearBotStatus();
+    };
+
+    ws.onclose = () => {
+        clearBotStatus();
     };
 
     loadHistory();
+
+    function restorePendingStateFromHistory(messages) {
+        if (!Array.isArray(messages) || messages.length === 0) {
+            clearBotStatus();
+            return;
+        }
+
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === "user" && lastMessage.status === "processing") {
+            startAssistantStatusFlow();
+            return;
+        }
+
+        clearBotStatus();
+    }
 
     async function loadHistory() {
         try {
@@ -241,37 +838,229 @@
             data.messages.forEach(msg => {
                 addMessage(msg.role, msg.text);
             });
+            restorePendingStateFromHistory(data.messages);
 
         } catch (err) {
             console.error(err);
         }
     }
 
-    function send() {
+    async function send() {
         const text = input.value.trim();
         if (!text) return;
 
-        fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/send`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ text })
-        });
+        startAssistantStatusFlow();
 
-        input.value = "";
+        try {
+            const response = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ text })
+            });
+
+            if (!response.ok) {
+                clearBotStatus();
+                return;
+            }
+
+            input.value = "";
+        } catch (error) {
+            clearBotStatus();
+            console.error(error);
+        }
     }
 
     function addMessage(role, text) {
         const div = document.createElement("div");
         div.className = `message ${role}`;
-        div.innerText = text;
+        if (role === "user") {
+            div.innerHTML = `<div class="user-bubble">${renderMarkdown(text)}</div>`;
+        } else {
+            div.innerHTML = renderMarkdown(text);
+        }
 
         chat.appendChild(div);
 
         // автоскролл вниз
         chat.scrollTop = chat.scrollHeight;
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function parseInline(text) {
+        return text
+            .replace(/&lt;\s*\/?\s*br\s*\/?\s*&gt;/gi, "<br>")
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    }
+
+    function isTableRow(line) {
+        const trimmed = line.trim();
+        return /^\|.*\|$/.test(trimmed);
+    }
+
+    function splitTableRow(line) {
+        return line
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map((cell) => cell.trim());
+    }
+
+    function isTableDivider(line, expectedCols) {
+        const cells = splitTableRow(line);
+        if (cells.length !== expectedCols) return false;
+        return cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+    }
+
+    function renderMarkdown(rawText) {
+        const src = escapeHtml(rawText || "");
+        const codeBlocks = [];
+        const textWithoutCode = src.replace(/```([\s\S]*?)```/g, (_, code) => {
+            const token = `@@CODEBLOCK${codeBlocks.length}@@`;
+            codeBlocks.push(`<pre><code>${code.trimEnd()}</code></pre>`);
+            return token;
+        });
+
+        const lines = textWithoutCode.split(/\r?\n/);
+        const html = [];
+        let inList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                continue;
+            }
+
+            if (/^@@CODEBLOCK\d+@@$/.test(trimmed)) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push(trimmed);
+                continue;
+            }
+
+            if (/^---+$/.test(trimmed)) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push("<hr>");
+                continue;
+            }
+
+            if (isTableRow(trimmed)) {
+                let dividerIndex = i + 1;
+                while (dividerIndex < lines.length && !lines[dividerIndex].trim()) {
+                    dividerIndex++;
+                }
+
+                if (dividerIndex < lines.length && isTableRow(lines[dividerIndex].trim())) {
+                    const headers = splitTableRow(trimmed);
+                    const dividerLine = lines[dividerIndex].trim();
+
+                    if (isTableDivider(dividerLine, headers.length)) {
+                        if (inList) {
+                            html.push("</ul>");
+                            inList = false;
+                        }
+
+                        let rowsHtml = "";
+                        let rowIndex = dividerIndex + 1;
+
+                        while (rowIndex < lines.length) {
+                            const rowLine = lines[rowIndex].trim();
+                            if (!rowLine) {
+                                rowIndex++;
+                                continue;
+                            }
+                            if (!isTableRow(rowLine)) {
+                                break;
+                            }
+
+                            const rawCells = splitTableRow(rowLine);
+                            const cells = Array.from({ length: headers.length }, (_, idx) => rawCells[idx] || "");
+                            rowsHtml += `<tr>${cells.map((cell) => `<td>${parseInline(cell)}</td>`).join("")}</tr>`;
+                            rowIndex++;
+                        }
+
+                        const headerHtml = headers.map((h) => `<th>${parseInline(h)}</th>`).join("");
+                        html.push(
+                            `<div class="table-wrap"><table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`
+                        );
+                        i = rowIndex - 1;
+                        continue;
+                    }
+                }
+            }
+
+            const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+            if (headingMatch) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                const level = headingMatch[1].length;
+                html.push(`<h${level}>${parseInline(headingMatch[2])}</h${level}>`);
+                continue;
+            }
+
+            const quoteMatch = trimmed.match(/^>\s?(.*)$/);
+            if (quoteMatch) {
+                if (inList) {
+                    html.push("</ul>");
+                    inList = false;
+                }
+                html.push(`<blockquote>${parseInline(quoteMatch[1])}</blockquote>`);
+                continue;
+            }
+
+            const listMatch = trimmed.match(/^[-*вЂўвЂ‘]\s+(.+)$/);
+            if (listMatch) {
+                if (!inList) {
+                    html.push("<ul>");
+                    inList = true;
+                }
+                html.push(`<li>${parseInline(listMatch[1])}</li>`);
+                continue;
+            }
+
+            if (inList) {
+                html.push("</ul>");
+                inList = false;
+            }
+            html.push(`<p>${parseInline(trimmed)}</p>`);
+        }
+
+        if (inList) {
+            html.push("</ul>");
+        }
+
+        let result = html.join("\n");
+        codeBlocks.forEach((block, idx) => {
+            result = result.replace(`@@CODEBLOCK${idx}@@`, block);
+        });
+        return result;
     }
 
     function setViewportHeight() {
@@ -284,8 +1073,11 @@
 
     sendBtn.addEventListener("click", send);
 
-    input.addEventListener("sl-keydown", (event) => {
-        if (event.key === "Enter") send();
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            send();
+        }
     });
     document.getElementById("back-btn").onclick = () => {
     if (typeof CURRENT_APP_MODE !== 'undefined' && (CURRENT_APP_MODE === 'STATELESS') || (CURRENT_APP_MODE === 'SINGLE_CHAT')) {
@@ -320,3 +1112,6 @@
 </script>
 </body>
 </html>
+
+
+

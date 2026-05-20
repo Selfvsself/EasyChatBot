@@ -1,11 +1,19 @@
 import json
 from uuid import UUID
 import logging
+from core.config import settings
 from repositories.message_repository import MessageRepository
 from repositories.chat_repository import ChatRepository
+from services.chat_memory_service import ChatMemoryService
+from services.llm_client import LLMClient
 
 
 async def consume_and_dispatch(kafka, manager, db_factory):
+    llm_client = LLMClient(
+        base_url=settings.LLM_URL,
+        model=settings.LLM_MODEL
+    )
+
     async for msg in kafka.consumer:
         data = json.loads(msg.value)
         chat_id = data.get("chat_id")
@@ -15,22 +23,54 @@ async def consume_and_dispatch(kafka, manager, db_factory):
             logging.warning("No user_id in message in chat %s", chat_id)
             continue
         text = data.get('text')
+        event = data.get("event")
 
         db = db_factory()
         try:
             chat_repo = ChatRepository(db)
             chat = chat_repo.get_by_id(chat_id)
+            if not chat:
+                logging.warning("Chat %s not found while dispatching message", chat_id)
+                continue
+
             if chat.user_id == UUID(user_id):
+                if event == "agent_stage":
+                    await manager.send_to_user(chat_id, data)
+                    continue
+
                 msg_repo = MessageRepository(db)
 
-                added_msg = msg_repo.create_msg(
-                    chat_id=chat_id,
-                    role=role,
-                    text=text
-                )
+                added_msg = None
+                # User messages are already persisted in HTTP request flow.
+                if role != "user":
+                    added_msg = msg_repo.create_msg(
+                        chat_id=chat_id,
+                        role=role,
+                        text=text
+                    )
+                    if role == "assistant":
+                        msg_repo.complete_latest_processing_user_message(chat_id=chat_id)
+                    chat_repo.touch(chat_id=chat_id)
+
+                # Автоназвание для нового чата: первое непустое сообщение пользователя.
+                if role == "user" and not (chat.title or "").strip():
+                    compact_text = " ".join(str(text or "").split())
+                    if compact_text:
+                        auto_title = compact_text[:80]
+                        chat_repo.update_title(chat_id=chat_id, title=auto_title)
 
                 await manager.send_to_user(chat_id, data)
-                logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
+                if added_msg:
+                    logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
+
+                memory_service = ChatMemoryService(
+                    message_repo=msg_repo,
+                    chat_repo=chat_repo,
+                    llm_client=llm_client
+                )
+                is_compressed = await memory_service.compress_if_needed(chat_id=chat_id)
+                if is_compressed:
+                    logging.info("Messages in chat %s has been compressed", chat_id)
         except Exception as db_error:
             logging.error(f"❌ DB error: {db_error}")
         finally:

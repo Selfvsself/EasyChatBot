@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,6 +33,10 @@ class Chat(Base):
 
     title: Mapped[str | None] = mapped_column(
         String(255)
+    )
+
+    memory_summary: Mapped[str | None] = mapped_column(
+        Text
     )
 
     created_at: Mapped[datetime] = mapped_column(
