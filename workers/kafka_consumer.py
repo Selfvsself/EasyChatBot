@@ -40,12 +40,17 @@ async def consume_and_dispatch(kafka, manager, db_factory):
 
                 msg_repo = MessageRepository(db)
 
-                added_msg = msg_repo.create_msg(
-                    chat_id=chat_id,
-                    role=role,
-                    text=text
-                )
-                chat_repo.touch(chat_id=chat_id)
+                added_msg = None
+                # User messages are already persisted in HTTP request flow.
+                if role != "user":
+                    added_msg = msg_repo.create_msg(
+                        chat_id=chat_id,
+                        role=role,
+                        text=text
+                    )
+                    if role == "assistant":
+                        msg_repo.complete_latest_processing_user_message(chat_id=chat_id)
+                    chat_repo.touch(chat_id=chat_id)
 
                 # Автоназвание для нового чата: первое непустое сообщение пользователя.
                 if role == "user" and not (chat.title or "").strip():
@@ -55,7 +60,8 @@ async def consume_and_dispatch(kafka, manager, db_factory):
                         chat_repo.update_title(chat_id=chat_id, title=auto_title)
 
                 await manager.send_to_user(chat_id, data)
-                logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
+                if added_msg:
+                    logging.info("Message %s has been send to '%s' chat", added_msg.id, chat_id)
 
                 memory_service = ChatMemoryService(
                     message_repo=msg_repo,

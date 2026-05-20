@@ -4,12 +4,23 @@ import uuid
 
 class MessageService:
 
-    def __init__(self, kafka_service, message_repo):
+    def __init__(self, kafka_service, message_repo, chat_repo=None):
         self.kafka = kafka_service
         self.message_repo = message_repo
+        self.chat_repo = chat_repo
 
     async def send_message(self, chat_id: uuid, user_id:uuid, text: str):
         msg_id = uuid.uuid4()
+
+        # Persist user's message immediately in HTTP flow so it is visible after refresh.
+        self.message_repo.create_msg(
+            chat_id=chat_id,
+            role="user",
+            text=text,
+            status="processing"
+        )
+        if self.chat_repo:
+            self.chat_repo.touch(chat_id=chat_id)
 
         await self.kafka.send_response_message(
             chat_id=str(chat_id),

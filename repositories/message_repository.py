@@ -9,8 +9,16 @@ class MessageRepository(BaseRepository):
             chat_id,
             role,
             text,
-            status="sent"
+            status=None
     ):
+        if status is None:
+            if role == "user":
+                status = "processing"
+            elif role == "assistant":
+                status = "completed"
+            else:
+                status = "sent"
+
         msg = Message(
             chat_id=chat_id,
             role=role,
@@ -77,3 +85,19 @@ class MessageRepository(BaseRepository):
 
     def mark_as_read(self, message_id):
         return self.update_status(message_id, "read")
+
+    def complete_latest_processing_user_message(self, chat_id):
+        msg = (
+            self.db.query(Message)
+            .filter(
+                Message.chat_id == chat_id,
+                Message.role == "user",
+                Message.status.in_(["processing", "sent"]),
+            )
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+        if msg:
+            msg.status = "completed"
+            self.db.commit()
+        return msg

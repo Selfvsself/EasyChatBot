@@ -807,6 +807,21 @@
 
     loadHistory();
 
+    function restorePendingStateFromHistory(messages) {
+        if (!Array.isArray(messages) || messages.length === 0) {
+            clearBotStatus();
+            return;
+        }
+
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === "user" && lastMessage.status === "processing") {
+            startAssistantStatusFlow();
+            return;
+        }
+
+        clearBotStatus();
+    }
+
     async function loadHistory() {
         try {
             const res = await fetch(API_APPS + `/${CURRENT_APP_ID}/chat/${CURRENT_CHAT_ID}/history`, {
@@ -823,6 +838,7 @@
             data.messages.forEach(msg => {
                 addMessage(msg.role, msg.text);
             });
+            restorePendingStateFromHistory(data.messages);
 
         } catch (err) {
             console.error(err);

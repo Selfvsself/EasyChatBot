@@ -17,6 +17,7 @@ class ChatHistoryItem(BaseModel):
     id: UUID
     text: str
     role: str
+    status: str
     created_at: datetime
 
     class Config:

@@ -86,7 +86,8 @@ async def send_message(app_id: UUID,
         kafka = request.app.state.kafka
         service = MessageService(
             kafka_service=kafka,
-            message_repo=message_repo
+            message_repo=message_repo,
+            chat_repo=chat_repo
         )
         return await service.send_message(chat_id, user.id, payload.text)
     else:
@@ -116,7 +117,8 @@ def get_chat_history(
 
         service = MessageService(
             kafka_service=kafka,
-            message_repo=message_repo
+            message_repo=message_repo,
+            chat_repo=chat_repo
         )
 
         messages = service.get_history(chat_id, limit, offset)
