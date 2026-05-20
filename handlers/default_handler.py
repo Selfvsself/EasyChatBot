@@ -1,7 +1,7 @@
-from .pipelines.pipeline_factory import PipelineFactory
-from .pipelines.pipeline_orchestrator import PipelineOrchestrator
-from .pipelines.steps.step_context import StepContext
-from .base_handler import BaseHandler
+from handlers.pipelines.pipeline_factory import PipelineFactory
+from handlers.pipelines.pipeline_orchestrator import PipelineOrchestrator
+from handlers.pipelines.steps.step_context import StepContext
+from handlers.base_handler import BaseHandler
 
 
 class DefaultHandler(BaseHandler):

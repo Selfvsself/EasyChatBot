@@ -25,8 +25,10 @@ class GenerateJsonStep(BaseStep):
     async def execute(self, context: StepContext, stage_callback=None) -> StepResult:
         if not context:
             raise ValueError("context is missing or empty")
+        system_prompt = self.get_system_prompt(context)
         user_query = self.get_user_query(context)
-        messages = self.create_messages(context)
+        history = self.get_history(context)
+        messages = self.create_messages(system_prompt, history, user_query)
         answer = await self.get_answer_with_retry(messages, user_query)
         result_ctx = StepContext.from_context(context)
         result_ctx.answer = answer
