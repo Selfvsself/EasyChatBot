@@ -76,7 +76,7 @@ class GenerateWebAnswerStep(BaseStep):
         user_intent = self.get_user_intent(context)
         output_data = {
             "meta": {
-                "agent": "information_extractor"
+                "agent": "answer_agent"
             },
             "task": {
                 "user_message": user_query,

@@ -55,7 +55,6 @@ class PlanStep(BaseStep):
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
         user_intent = self.get_user_intent(context)
-        chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {
                 "agent": "next_step_planner"
@@ -66,8 +65,7 @@ class PlanStep(BaseStep):
                 "normalized_intent": user_intent
             },
             "context": {
-                "recent_history": history,
-                "chat_memory": chat_memory
+                "recent_history": history
             }
         }
 

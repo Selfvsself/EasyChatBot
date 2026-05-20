@@ -28,28 +28,25 @@ class AgentPipeline(BaseStep):
             search_plan = await self.plan_step.execute(last_context)
             last_context = search_plan.context
             next_step = last_context.action
-            valid_criteria = await self.validation_criteria.execute(last_context)
-            last_context = valid_criteria.context
             if next_step == StepAction.SEARCH:
+                valid_criteria = await self.validation_criteria.execute(last_context)
+                last_context = valid_criteria.context
                 web_result = await self.web_agent.execute(last_context, stage_callback)
                 last_context = web_result.context
-                break
+                await self.send_sources(last_context, stage_callback)
+                return StepResult(context=last_context, stop=False)
             elif next_step == StepAction.CLARIFY:
                 await self._emit_stage(stage_callback, "typing", {})
                 result = await self.answer_step.execute(last_context)
                 last_context = result.context
                 return StepResult(context=last_context, stop=False)
             else:
+                valid_criteria = await self.validation_criteria.execute(last_context)
+                last_context = valid_criteria.context
                 await self._emit_stage(stage_callback, "typing", {})
-                await self.send_sources(last_context, stage_callback)
                 result = await self.answer_step.execute(last_context)
                 last_context = result.context
                 return StepResult(context=last_context, stop=False)
-
-
-        await self.send_sources(last_context, stage_callback)
-
-        return StepResult(context=last_context, stop=False)
 
     def stage(self) -> str:
         return "thinking"
