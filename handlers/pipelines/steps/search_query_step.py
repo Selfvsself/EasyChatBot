@@ -54,11 +54,9 @@ class SearchQueryStep(BaseStep):
         return StepResult(context=result_ctx, stop=False)
 
     def user_message(self, context: StepContext) -> str:
-        history = self.get_history(context)
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
         user_intent = self.get_next_step_query(context)
-        chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {
                 "agent": "search_planner"
@@ -67,10 +65,6 @@ class SearchQueryStep(BaseStep):
                 "user_message": user_query,
                 "required_criteria": validation_condition,
                 "normalized_intent": user_intent
-            },
-            "context": {
-                "recent_history": history,
-                "chat_memory": chat_memory
             }
         }
 
@@ -88,7 +82,6 @@ class SearchQueryStep(BaseStep):
             "You will receive a JSON containing:\n"
             "- \"task\": Includes \"user_message\" (current text), \"required_criteria\" (constraints), and "
             "\"normalized_intent\" (reconstructed global goal).\n"
-            "- \"context\": \"recent_history\" and \"chat_memory\".\n\n"
             "RULES FOR SEARCH QUERY GENERATION:\n"
             "1. Base on Intent & Criteria: Transform the \"normalized_intent\" and \"required_criteria\" into a concise"
             ", keyword-rich search query. Ignore conversational fluff.\n"
