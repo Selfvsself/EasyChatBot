@@ -28,18 +28,11 @@ class GenerateStep(BaseStep):
         system_prompt = self.get_system_prompt(context)
         history = self.get_history(context)
         user_query = self.get_user_query(context)
-        internal_messages = self.get_internal_messages(context)
-        messages = self.create_messages(system_prompt, history, [], user_query)
+        messages = self.create_messages(system_prompt, history, user_query)
         answer = await self.get_answer_with_retry(messages, user_query)
         result_ctx = StepContext.from_context(context)
         result_ctx.answer = answer
 
-        internal_messages = self.get_internal_messages(context)
-        internal_messages.append(
-            "RESPONSE AGENT\n"
-            f"ANSWER:\n{answer}\n"
-        )
-        result_ctx.internal_messages = internal_messages
         return StepResult(context=result_ctx, stop=False)
 
     def stage(self) -> str:

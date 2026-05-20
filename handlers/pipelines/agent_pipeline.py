@@ -6,7 +6,6 @@ from handlers.pipelines.steps.enum.step_action import StepAction
 from handlers.pipelines.steps.generate_step import GenerateStep
 from handlers.pipelines.agent_web_search_pipeline import WebAgentPipeline
 from handlers.pipelines.steps.validation_criteria_step import ValidationCriteriaStep
-from handlers.pipelines.steps.search_validations_step import SearchValidationStep, ValidationAction
 
 
 class AgentPipeline(BaseStep):
@@ -18,7 +17,6 @@ class AgentPipeline(BaseStep):
         self.plan_step = PlanStep(self.llm_client)
         self.answer_step = GenerateStep(self.llm_client)
         self.web_agent = WebAgentPipeline(self.llm_client, max_pages=8)
-        self.web_validation = SearchValidationStep(self.llm_client)
         self.validation_criteria = ValidationCriteriaStep(self.llm_client)
 
     async def execute(self, context: StepContext, stage_callback=None) -> StepResult:

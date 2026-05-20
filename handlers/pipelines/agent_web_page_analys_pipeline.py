@@ -48,13 +48,6 @@ class WebPageAnalysAgentPipeline(BaseStep):
                         break
         last_context.search_results = pages_body
 
-        internal_messages = self.get_internal_messages(last_context)
-        if pages_body:
-            is_success = True
-            internal_messages.append(f"USEFUL PAGES FOUND: {len(pages_body)}")
-        else:
-            internal_messages.append(f"NO USEFUL PAGES FOUND")
-
         return StepResult(context=last_context, stop=False, success=is_success)
 
     def stage(self) -> str:

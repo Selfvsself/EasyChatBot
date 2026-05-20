@@ -28,8 +28,8 @@ class StepContext:
             chat_memory: str,
             system_prompt: str,
             history: list[dict] = None,
-            internal_messages: list[str] = None,
             answer: str = None,
+            user_intent: str = None,
             action: str = None,
             validation_condition: str = None,
             next_step_query: str = None,
@@ -37,9 +37,9 @@ class StepContext:
         self.user_input = user_input
         self.chat_memory = chat_memory
         self.history = history
-        self.internal_messages = internal_messages
         self.system_prompt = system_prompt
         self.answer = answer
+        self.user_intent = user_intent
         self.action = action
         self.validation_condition = validation_condition
         self.next_step_query = next_step_query
@@ -51,9 +51,9 @@ class StepContext:
             user_input=context.user_input,
             chat_memory=context.chat_memory,
             history=context.history,
-            internal_messages=context.internal_messages,
             system_prompt=context.system_prompt,
             answer=context.answer,
+            user_intent=context.user_intent,
             action=context.action,
             validation_condition=context.validation_condition,
             next_step_query=context.next_step_query,

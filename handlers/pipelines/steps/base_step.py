@@ -76,6 +76,15 @@ class BaseStep:
         return next_step_query
 
     @staticmethod
+    def get_user_intent(context: StepContext = None):
+        if not context:
+            raise ValueError("context is missing or empty")
+        user_intent = "None"
+        if context.user_intent:
+            user_intent = context.user_intent
+        return user_intent
+
+    @staticmethod
     def get_search_results(context: StepContext = None):
         search_results = []
         if context and context.search_results:
@@ -89,17 +98,9 @@ class BaseStep:
             return context.action
         return action
 
-    @staticmethod
-    def get_internal_messages(context: StepContext = None):
-        internal_messages = []
-        if context and context.internal_messages:
-            return context.internal_messages
-        return internal_messages
-
     def create_messages(self,
                         system_prompt: str,
                         history: list[dict],
-                        internal_messages: list[str],
                         user_query: str) -> list[dict]:
         messages = []
 
@@ -109,16 +110,6 @@ class BaseStep:
 
         if history:
             messages.extend(history)
-
-        if internal_messages:
-            internal_message = "<thought>\n"
-            for idx, msg in enumerate(internal_messages):
-                internal_message += f"Step {idx + 1}:\n"
-                internal_message += msg
-                internal_message += "\n"
-            internal_message += "</thought>"
-
-            messages.append({"role": "assistant", "content": internal_message})
 
         if user_query:
             messages.append({"role": "user", "content": user_query})

@@ -2,8 +2,8 @@ import json
 
 from pydantic import BaseModel
 
-from handlers.pipelines.steps.step_context import StepContext, SearchResult
 from handlers.pipelines.steps.base_step import BaseStep
+from handlers.pipelines.steps.step_context import StepContext, SearchResult
 from handlers.pipelines.steps.step_result import StepResult
 
 
@@ -28,6 +28,7 @@ class SearchSummaryStep(BaseStep):
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
+                print("SearchSummaryStep raw_response:\n", raw_response)
                 messages.append({"role": "assistant", "content": raw_response})
                 payload = json.loads(self._strip_fences(raw_response))
                 summary = self.SummaryResult.model_validate(payload)
@@ -52,18 +53,15 @@ class SearchSummaryStep(BaseStep):
         is_success = False
         summaries = []
         search_results = self.get_search_results(context)
-        validation_condition = self.get_validation_condition(context)
         system_prompt = self.get_system_prompt(context)
-        internal_msg = self.get_internal_messages(context)
-        user_query = self.get_user_query(context)
-        history = self.get_history(context)
+        print("SearchSummaryStep system_prompt:\n", system_prompt)
         for search in search_results:
             title = search.title
             url = search.url
-            text = search.text
 
-            user_prompt = self.user_message(user_query, validation_condition, text, internal_msg, history)
-            messages = self.create_messages(system_prompt, [], [], user_prompt)
+            user_prompt = self.user_message(context, search)
+            print("SearchSummaryStep user_prompt:\n", user_prompt)
+            messages = self.create_messages(system_prompt, [], user_prompt)
             summary = await self.parse_summary_result_with_retry(messages)
             if summary.useful_for_answer:
                 is_success = True
@@ -76,43 +74,58 @@ class SearchSummaryStep(BaseStep):
     def stage(self) -> str:
         return "thinking"
 
-    @staticmethod
-    def user_message(user_query: str, required_info: str, page_text: str, internal_messages: list[str], history: list[dict]):
-        internal_message = "None"
-        if internal_messages:
-            internal_message = "<thought>\n"
-            for idx, msg in enumerate(internal_messages):
-                internal_message += f"Step {idx + 1}:\n"
-                internal_message += msg
-                internal_message += "\n"
-            internal_message += "</thought>"
+    def user_message(self, context: StepContext, search_result: SearchResult) -> str:
+        user_query = self.get_user_query(context)
+        validation_condition = self.get_validation_condition(context)
+        user_intent = self.get_next_step_query(context)
+        output_data = {
+            "meta": {
+                "agent": "information_extractor"
+            },
+            "task": {
+                "user_message": user_query,
+                "required_criteria": validation_condition,
+                "normalized_intent": user_intent
+            },
+            "data": {
+                "web_page": {
+                    "url": search_result.url,
+                    "title": search_result.title,
+                    "content": search_result.text
+                }
+            }
+        }
 
-        history_text = "\n".join(f"- Role: '{m["role"]}' Content: '{m["content"]}'" for m in history)
-
-        return (
-            f"Conversation history: \n<history>\n{history_text}\n</history>\n\n"
-            f"User Query: {user_query}\n"
-            f"Required Criteria: {required_info}\n\n"
-            f"History of thoughts: {internal_message}\n\n"
-            f"Webpage Content:\n{page_text}"
-        )
+        return json.dumps(output_data, ensure_ascii=False, indent=2)
 
     def get_system_prompt(self, context: StepContext = None):
         return self.set_prompt_templates(
-            "You are an information extraction assistant.\n"
-            "Your job is to analyze the webpage text and extract only the information relevant to the user's query and criteria.\n\n"
-
-            "RULES:\n"
-            "- Analyze the provided webpage text carefully\n"
-            "- Determine if the page contains answers to the requested criteria\n"
-            "- If the page is NOT useful, set useful_for_answer to false and compressed_text to \"\"\n"
-            "- If it IS useful, extract ONLY the facts needed for the answer. Remove ads, navigation, and fluff\n"
-            "- Do NOT answer the user's query yourself\n"
-            "- Only return JSON matching the schema\n\n"
-
-            "OUTPUT JSON SCHEMA:\n"
+            "You are an information extraction assistant. Your job is to analyze raw webpage text and extract ONLY the "
+            "facts and data relevant to the user's normalized intent and mandatory criteria.\n\n"
+            "INPUT STRUCTURE:\n"
+            "You will receive a JSON containing:\n"
+            "- \"task\": Includes \"user_message\", \"required_criteria\" (constraints), and \"normalized_intent\" "
+            "(global goal).\n"
+            "- \"data\": \"web_page\" object containing \"url\", \"title\", and \"content\" (raw webpage text).\n"
+            "RULES FOR INFORMATION EXTRACTION:\n"
+            "1. Usefulness Evaluation: Analyze \"web_page.content\" carefully. Determine if this page actually contains"
+            " specific facts, answers, or data that satisfy the \"normalized_intent\" and match the "
+            "\"required_criteria\".\n"
+            "2. Negative Case: If the page is a generic error, access denied, contains no relevant info, or fails to "
+            "meet the \"required_criteria\", you MUST set \"useful_for_answer\" to false and \"compressed_text\" "
+            "to \"\".\n"
+            "3. Positive Case (Extraction): If the page is useful, extract ONLY the direct facts, figures, and text "
+            "required to answer the query. Completely remove all navigation links, advertisements, "
+            "headers/footers, and irrelevant content.\n"
+            "4. Objective Role: Do NOT attempt to answer the user's query yourself. Do NOT synthesize a final response."
+            " Your only job is to compress and extract raw, relevant data for the next agent in the pipeline.\n"
+            "5. Language: Keep the extracted facts in the original language of the webpage text, or in the language of "
+            "the \"user_message\" if it facilitates easy integration.\n\n"
+            "OUTPUT FORMAT:\n"
+            "Return ONLY a JSON object. No markdown blocks, no extra text.\n"
             "{\n"
-            "  \"useful_for_answer\": bool,\n"
-            "  \"compressed_text\": str\n"
+            "  \"useful_for_answer\": true | false,\n"
+            "  \"compressed_text\": \"Extracted and cleaned text containing only relevant facts, or empty "
+            "string if not useful\"\n"
             "}"
         )

@@ -20,7 +20,7 @@ class SelectBestQueryStep(BaseStep):
         user_prompt = self.user_message(context)
         print("SelectBestQueryStep system_prompt:\n", system_prompt)
         print("SelectBestQueryStep user_prompt:\n", user_prompt)
-        messages = self.create_messages(system_prompt, [], [], user_prompt)
+        messages = self.create_messages(system_prompt, [], user_prompt)
 
         plan = None
         for attempt in range(max_attempts):
@@ -54,17 +54,14 @@ class SelectBestQueryStep(BaseStep):
 
         result_ctx = StepContext.from_context(context)
         result_ctx.next_step_query = plan.selected_query
-
-        internal_messages = self.get_internal_messages(context)
-        internal_messages.append(f"WEB QUERY SELECTED: {plan.selected_query}")
-        result_ctx.internal_messages = internal_messages
+        result_ctx.user_intent = plan.selected_query
 
         return StepResult(context=result_ctx, stop=False)
 
     def user_message(self, context: StepContext) -> str:
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
-        user_intent = self.get_next_step_query(context)
+        user_intent = self.get_user_intent(context)
         queries_to_analyze = self.get_search_results(context)
         if not queries_to_analyze:
             queries_to_analyze = [SearchResult(user_query, "", user_query)]

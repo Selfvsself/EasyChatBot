@@ -1,4 +1,4 @@
-from handlers.pipelines.agent_web_page_analys_pipeline import WebPageAnalysAgentPipeline
+from handlers.pipelines.agent_pipeline import AgentPipeline
 from handlers.pipelines.agent_web_search_pipeline import WebAgentPipeline
 from handlers.pipelines.steps.generate_json_step import GenerateJsonStep
 from handlers.pipelines.steps.generate_step import GenerateStep
@@ -7,9 +7,6 @@ from handlers.pipelines.steps.search_page_source_step import SearchPageSourceSte
 from handlers.pipelines.steps.search_rag_step import SearchRagStep
 from handlers.pipelines.steps.search_summary_step import SearchSummaryStep
 from handlers.pipelines.steps.search_web_step import SearchWebStep
-from handlers.pipelines.agent_pipeline import AgentPipeline
-from handlers.pipelines.steps.validation_criteria_step import ValidationCriteriaStep
-from handlers.pipelines.agent_search_planning_pipeline import SearchPlanningAgentPipeline
 
 
 class PipelineFactory:
@@ -39,9 +36,7 @@ class PipelineFactory:
 
     def web_step(self):
         return [
-            PlanStep(self.llm_client),
-            ValidationCriteriaStep(self.llm_client),
-            SearchPlanningAgentPipeline(self.llm_client)
+            WebAgentPipeline(self.llm_client)
         ]
 
     def main_agent(self):

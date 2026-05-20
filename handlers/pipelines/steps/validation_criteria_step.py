@@ -19,7 +19,7 @@ class ValidationCriteriaStep(BaseStep):
         user_prompt = self.user_message(context)
         print("ValidationCriteriaStep system_prompt:\n", system_prompt)
         print("ValidationCriteriaStep user_prompt:\n", user_prompt)
-        messages = self.create_messages(system_prompt, [], [], user_prompt)
+        messages = self.create_messages(system_prompt, [], user_prompt)
 
         for attempt in range(max_attempts):
             try:
@@ -48,10 +48,6 @@ class ValidationCriteriaStep(BaseStep):
         result_ctx = StepContext.from_context(context)
 
         result_ctx.validation_condition = criteria
-        internal_messages = self.get_internal_messages(context)
-        internal_messages.append(f"VALIDATION CRITERIA: {criteria}")
-
-        result_ctx.internal_messages = internal_messages
 
         return StepResult(context=result_ctx, stop=False)
 
@@ -59,7 +55,7 @@ class ValidationCriteriaStep(BaseStep):
         history = self.get_history(context)
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
-        user_intent = self.get_next_step_query(context)
+        user_intent = self.get_user_intent(context)
         chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {

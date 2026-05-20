@@ -12,7 +12,6 @@ class PlanStep(BaseStep):
     class RouterDecision(BaseModel):
         action: StepAction
         reason: str
-        user_intent: str
 
     async def parse_decision_with_retry(self, context: StepContext) -> RouterDecision:
         max_attempts = 3
@@ -20,7 +19,7 @@ class PlanStep(BaseStep):
         user_prompt = self.user_message(context)
         print("PlanStep system_prompt:\n", system_prompt)
         print("PlanStep user_prompt:\n", user_prompt)
-        messages = self.create_messages(system_prompt, [], [], user_prompt)
+        messages = self.create_messages(system_prompt, [], user_prompt)
 
         decision = None
         for attempt in range(max_attempts):
@@ -48,7 +47,6 @@ class PlanStep(BaseStep):
 
         result_ctx = StepContext.from_context(context)
         result_ctx.action = decision.action
-        result_ctx.next_step_query = decision.user_intent
 
         return StepResult(context=result_ctx, stop=False)
 
@@ -56,7 +54,7 @@ class PlanStep(BaseStep):
         history = self.get_history(context)
         user_query = self.get_user_query(context)
         validation_condition = self.get_validation_condition(context)
-        user_intent = self.get_next_step_query(context)
+        user_intent = self.get_user_intent(context)
         chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {
@@ -87,7 +85,7 @@ class PlanStep(BaseStep):
             "You will receive a JSON containing:\n"
             "- \"task\": Includes \"user_message\" (current text), \"required_criteria\" (constraints), and "
             "\"normalized_intent\" (reconstructed global goal).\n"
-            "- \"context\": \"recent_history\" and \"chat_memory\"."
+            "- \"context\": \"recent_history\" and \"chat_memory\".\n"
             "CRITICAL INSTRUCTION FOR INTENT:\n"
             "First, determine the true \"user_intent\". If the current user message is incomplete, short, or uses "
             "pronouns, reconstruct the full, explicit request by combining it with the \"recent_history\" and \"chat_"
@@ -101,7 +99,6 @@ class PlanStep(BaseStep):
             "OUTPUT FORMAT:\n"
             "Return ONLY a JSON object. No markdown blocks, no extra text.\n"
             "{\n"
-            "\"user_intent\": \"Explicit reconstructed user request in the language of the user query\",\n"
             "\"reason\": \"Short explanation of the choice in English\",\n"
             "\"action\": \"SEARCH\" | \"CLARIFY\" | \"RESPOND\"\n"
             "}"
