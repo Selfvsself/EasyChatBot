@@ -60,7 +60,7 @@ class PlanStep(BaseStep):
         chat_memory = self.get_chat_memory(context)
         output_data = {
             "meta": {
-                "agent": "search_planner"
+                "agent": "next_step_planner"
             },
             "task": {
                 "user_message": user_query,
