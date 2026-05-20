@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "SUPER_SECRET_KEY"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 1
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 3
+    LOGIN_LOCKOUT_MINUTES: int = 15
 
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"

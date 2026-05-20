@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from models.user import User
 from repositories.base import BaseRepository
@@ -12,6 +13,13 @@ class UserRepository(BaseRepository):
         return (
             self.db.query(User)
             .filter(User.username == username)
+            .first()
+        )
+
+    def get_by_username_case_insensitive(self, username: str):
+        return (
+            self.db.query(User)
+            .filter(func.lower(User.username) == username.lower())
             .first()
         )
 

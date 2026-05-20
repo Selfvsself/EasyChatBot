@@ -39,3 +39,13 @@ class User(Base):
         default=datetime.utcnow,
         nullable=False
     )
+
+    failed_login_attempts: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0
+    )
+
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True
+    )
