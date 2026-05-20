@@ -70,7 +70,7 @@ def app_chats_page(app_id: UUID,
                    user_name: str = Depends(get_current_user_from_cookie)):
     app = app_repo.get_by_id(app_id)
 
-    if app.chat_mode == 'STATELESS' or app.chat_mode == 'SINGLE_CHAT':
+    if app.chat_mode in ('STATELESS', 'SINGLE_CHAT', 'SPLIT_TRANSLATOR'):
         user = user_repo.get_by_username(user_name)
         service = ChatService(
             chat_repo=chat_repo
@@ -101,9 +101,10 @@ def chat_page(app_id: UUID,
               chat_repo: ChatRepository = Depends(get_chat_repo)):
     app = app_repo.get_by_id(app_id)
     chat = chat_repo.get_by_id(chat_id)
+    template_name = "translator.html" if app.chat_mode == "SPLIT_TRANSLATOR" else "message.html"
     return templates.TemplateResponse(
         request,
-        "message.html",
+        template_name,
         {
             "app_id": app_id,
             "app_code": app.code,

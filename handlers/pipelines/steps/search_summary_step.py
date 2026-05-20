@@ -28,7 +28,6 @@ class SearchSummaryStep(BaseStep):
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
-                print("SearchSummaryStep raw_response:\n", raw_response)
                 messages.append({"role": "assistant", "content": raw_response})
                 payload = json.loads(self._strip_fences(raw_response))
                 summary = self.SummaryResult.model_validate(payload)
@@ -54,13 +53,11 @@ class SearchSummaryStep(BaseStep):
         summaries = []
         search_results = self.get_search_results(context)
         system_prompt = self.get_system_prompt(context)
-        print("SearchSummaryStep system_prompt:\n", system_prompt)
         for search in search_results:
             title = search.title
             url = search.url
 
             user_prompt = self.user_message(context, search)
-            print("SearchSummaryStep user_prompt:\n", user_prompt)
             messages = self.create_messages(system_prompt, [], user_prompt)
             summary = await self.parse_summary_result_with_retry(messages)
             if summary.useful_for_answer:

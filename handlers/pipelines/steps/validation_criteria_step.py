@@ -17,14 +17,11 @@ class ValidationCriteriaStep(BaseStep):
         max_attempts = 3
         system_prompt = self.get_system_prompt(context)
         user_prompt = self.user_message(context)
-        print("ValidationCriteriaStep system_prompt:\n", system_prompt)
-        print("ValidationCriteriaStep user_prompt:\n", user_prompt)
         messages = self.create_messages(system_prompt, [], user_prompt)
 
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
-                print("ValidationCriteriaStep raw_response:\n", raw_response)
                 payload = json.loads(self._strip_fences(raw_response))
                 validated_data = self.CriteriaResponse.model_validate(payload)
                 return validated_data.completeness_criteria

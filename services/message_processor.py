@@ -20,6 +20,7 @@ class MessageProcessor:
         self.llm = llm_client
         self.handlers = {
             "english-translator": TranslatorHandler(llm_client, message_repo),
+            "english-formal-translator": TranslatorHandler(llm_client, message_repo),
             "russian-translator": TranslatorHandler(llm_client, message_repo),
             "duckduckgo-search": WebSearchHandler(llm_client, message_repo),
             "jira-search": DefaultHandler(llm_client, message_repo),

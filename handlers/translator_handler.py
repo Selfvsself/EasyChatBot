@@ -1,7 +1,7 @@
 import json
 import re
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 
 from .pipelines.pipeline_factory import PipelineFactory
 from .pipelines.pipeline_orchestrator import PipelineOrchestrator
@@ -16,6 +16,13 @@ class TranslatorHandler(BaseHandler):
         context_notes: str | None = None
         translation: str = ""
         detected_language_code: str = "unknown"
+
+        @field_validator("translation", mode="before")
+        @classmethod
+        def serialize_json_to_string(cls, v):
+            if isinstance(v, (dict, list)):
+                return json.dumps(v, ensure_ascii=False)
+            return str(v)
 
     def __init__(self, llm_client, message_repo):
         super().__init__(llm_client, message_repo)
@@ -49,8 +56,8 @@ class TranslatorHandler(BaseHandler):
         return "\n".join(lines)
 
     async def handle(self, user_query, context, tools, stage_callback=None):
-        history = self.get_chat_history(context, user_query)
-        chat_memory = self.prepare_chat_memory(context)
+        history = []
+        chat_memory = "None"
         system_prompt = self.prepare_system_prompt(context, chat_memory)
 
         context = StepContext(

@@ -18,15 +18,12 @@ class SelectBestQueryStep(BaseStep):
         system_prompt = self.get_system_prompt(context)
         user_query = self.get_user_query(context)
         user_prompt = self.user_message(context)
-        print("SelectBestQueryStep system_prompt:\n", system_prompt)
-        print("SelectBestQueryStep user_prompt:\n", user_prompt)
         messages = self.create_messages(system_prompt, [], user_prompt)
 
         plan = None
         for attempt in range(max_attempts):
             try:
                 raw_response = await self.llm_client.chat_json(messages)
-                print("SelectBestQueryStep raw_response:\n", raw_response)
                 payload = json.loads(self._strip_fences(raw_response))
                 plan = self.SelectionPlan.model_validate(payload)
                 break
